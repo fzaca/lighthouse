@@ -9,7 +9,7 @@ packages = [{ include = "lighthouse", from = "src" }]
 authors = ["fzaca zaca03zaca@gmail.com"]
 
 [tool.poetry.dependencies]
-python = ">=3.12"
+python = "^3.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4"
