@@ -22,4 +22,4 @@ jobs:
       - name: Publish package to PyPI
         run: poetry publish
         env:
-          POETRY_PYPI_TOKEN_PYPI: \${{ secrets.PYPI_API_TOKEN }}
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
