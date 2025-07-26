@@ -39,7 +39,12 @@ class ProxyManager:
         Optional[Proxy]
             The acquired proxy, or None if no suitable proxy is available.
         """
-        pass
+        proxy = self._storage.find_available_proxy(pool_name, filters)
+        if proxy:
+            self._storage.create_lease(proxy, client_id)
+            return proxy
+
+        return None
 
     def release_proxy(self, lease: Lease) -> None:
         """
