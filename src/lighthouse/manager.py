@@ -1,6 +1,6 @@
 from typing import Optional
 
-from lighthouse.models import Lease, Proxy, ProxyFilters
+from lighthouse.models import Lease, ProxyFilters
 from lighthouse.storage import IStorage
 
 
@@ -23,7 +23,7 @@ class ProxyManager:
         client_id: str,
         duration_seconds: int = 300,
         filters: Optional[ProxyFilters] = None,
-    ) -> Optional[Proxy]:
+    ) -> Optional[Lease]:
         """
         Acquire a proxy from a given pool for a specific client.
 
@@ -42,13 +42,14 @@ class ProxyManager:
 
         Returns
         -------
-        Optional[Proxy]
-            The acquired proxy, or None if no suitable proxy is available.
+        Optional[Lease]
+            The acquired lease, containing the proxy and lease details,
+            or None if no suitable proxy is available.
         """
         proxy = self._storage.find_available_proxy(pool_name, filters)
         if proxy:
-            self._storage.create_lease(proxy, client_id, duration_seconds)
-            return proxy
+            lease = self._storage.create_lease(proxy, client_id, duration_seconds)
+            return lease
 
         return None
 

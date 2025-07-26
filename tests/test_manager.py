@@ -98,18 +98,18 @@ def test_acquire_exclusive_proxy_success_and_fail(
     mock_storage.add_proxy(proxy)
 
     # First acquisition should succeed
-    acquired_proxy = proxy_manager.acquire_proxy(
+    lease = proxy_manager.acquire_proxy(
         pool_name="test_pool", client_id=str(uuid4())
     )
-    assert acquired_proxy is not None
-    assert acquired_proxy.id == proxy.id
+    assert lease is not None
+    assert lease.proxy_id == proxy.id
     assert mock_storage.proxies[proxy.id].current_leases == 1
 
     # Second acquisition should fail
-    second_acquired_proxy = proxy_manager.acquire_proxy(
+    second_lease = proxy_manager.acquire_proxy(
         pool_name="test_pool", client_id=str(uuid4())
     )
-    assert second_acquired_proxy is None
+    assert second_lease is None
     assert mock_storage.proxies[proxy.id].current_leases == 1
 
 
@@ -179,14 +179,11 @@ def test_release_frees_up_slot(proxy_manager: ProxyManager, mock_storage: MockSt
     mock_storage.add_proxy(proxy)
 
     # 1. Acquire the proxy
-    acquired_proxy = proxy_manager.acquire_proxy(
+    lease = proxy_manager.acquire_proxy(
         pool_name="release_pool", client_id=str(uuid4())
     )
-    assert acquired_proxy is not None
+    assert lease is not None
     assert mock_storage.proxies[proxy.id].current_leases == 1
-
-    # Find the lease object that was just created
-    lease_to_release = list(mock_storage.leases.values())[0]
 
     # 2. Try to acquire again, should fail
     failed_acquisition = proxy_manager.acquire_proxy(
@@ -195,12 +192,12 @@ def test_release_frees_up_slot(proxy_manager: ProxyManager, mock_storage: MockSt
     assert failed_acquisition is None
 
     # 3. Release the first lease
-    proxy_manager.release_proxy(lease_to_release)
+    proxy_manager.release_proxy(lease)
     assert mock_storage.proxies[proxy.id].current_leases == 0
 
     # 4. Acquire again, should succeed
-    second_acquisition = proxy_manager.acquire_proxy(
+    second_lease = proxy_manager.acquire_proxy(
         pool_name="release_pool", client_id=str(uuid4())
     )
-    assert second_acquisition is not None
+    assert second_lease is not None
     assert mock_storage.proxies[proxy.id].current_leases == 1
