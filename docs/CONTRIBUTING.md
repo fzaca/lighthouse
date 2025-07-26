@@ -121,36 +121,28 @@ pytest tests/test_my_feature.py
 
 ## 5. Versioning and Releases (For Maintainers)
 
-This project follows [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`). Releases are automated via GitHub Actions.
+This project follows [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`) and uses [Commitizen](https://commitizen-tools.github.io/commitizen/) to automate versioning and changelog generation.
 
 **Release Process:**
 
-1.  **Ensure `master` is stable:**
-    All tests must be passing on the `master` branch.
+1.  **Ensure `main` is stable:**
+    All tests must be passing on the `main` branch.
 
-2.  **Bump the version:**
-    Use `poetry` to update the version number in `pyproject.toml`.
-
-    ```bash
-    # Choose one depending on the changes
-    poetry version patch  # For bugfixes (e.g., 0.1.0 -> 0.1.1)
-    poetry version minor  # For new features (e.g., 0.1.1 -> 0.2.0)
-    poetry version major  # For breaking changes (e.g., 0.2.0 -> 1.0.0)
-    ```
-
-3.  **Commit the version bump:**
-    ```bash
-    git add pyproject.toml
-    git commit -m "chore: Bump version to vX.Y.Z"
-    git push origin main
-    ```
-
-4.  **Create and push a git tag:**
-    The GitHub Actions workflow is triggered by pushing a new tag that matches the `v*.*.*` pattern.
+2.  **Create a new release:**
+    The `cz bump` command automates the entire release process based on the commit history since the last tag. It will:
+    *   Determine the correct version bump (`PATCH`, `MINOR`, or `MAJOR`).
+    *   Update the version in `pyproject.toml`.
+    *   Generate or update the `CHANGELOG.md` file.
+    *   Create a new git tag for the release.
 
     ```bash
-    git tag vX.Y.Z
-    git push origin vX.Y.Z
+    # This single command handles everything
+    cz bump
     ```
 
-This will trigger the `release.yml` workflow, which will build the package and publish it to PyPI.
+3.  **Push the changes and tags:**
+    After the command completes, push the commit and the new tag to the remote repository. The GitHub Actions workflow will then publish the package to PyPI.
+
+    ```bash
+    git push --tags
+    ```
