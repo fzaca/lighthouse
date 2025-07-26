@@ -1,18 +1,39 @@
-[project]
+[tool.poetry]
 name = "lighthouse"
 version = "0.1.0"
-description = ""
-authors = [
-    {name = "fzaca",email = "zaca03zaca@gmail.com"}
-]
+description = "A modern library for managing, leasing, and monitoring proxy pools."
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-]
+license = "MIT"
+repository = "https://github.com/fzaca/lighthouse"
+packages = [{ include = "lighthouse", from = "src" }]
+authors = ["fzaca zaca03zaca@gmail.com"]
 
-[tool.poetry]
-packages = [{include = "lighthouse", from = "src"}]
+[tool.poetry.dependencies]
+python = ">=3.12"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4"
+pytest-cov = "^4.1"
+ruff = "^0.1.6"
+pre-commit = "^3.5"
+mypy = "^1.7"
+
+[tool.ruff]
+line-length = 88
+select = ["E", "W", "F", "I", "C", "B", "N", "D"]
+ignore = ["D100", "D104", "D107"]
+
+[tool.ruff.isort]
+known-first-party = ["lighthouse"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=src/lighthouse --cov-report=term-missing"
+testpaths = ["tests"]
+
+[tool.mypy]
+ignore_missing_imports = true
+disallow_untyped_defs = true
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

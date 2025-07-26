@@ -17,5 +17,6 @@
 
 .venv
 /poetry.toml
+poetry.lock
 
 /drafts/*
