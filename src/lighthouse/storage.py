@@ -11,30 +11,69 @@ class IStorage(ABC):
     def find_available_proxy(
         self, pool_name: str, filters: Optional[ProxyFilters] = None
     ) -> Optional[Proxy]:
-        """Find an active and currently un-leased proxy from the specified pool.
+        """Find an available proxy that meets the concurrency criteria.
 
-        This method optionally matches a set of filters.
+        This method finds a proxy where the status is 'active' AND
+        ((max_concurrency is None) OR (current_leases < max_concurrency)).
+        It also optionally matches a set of filters.
 
-        :param pool_name: The name of the pool to search for an available proxy.
-        :param filters: An optional set of criteria to filter the proxies by.
-        :return: A Proxy object if one is available, otherwise None.
+        Args:
+            pool_name: The name of the pool to search in.
+            filters: Optional criteria to filter proxies by.
+
+        Returns
+        -------
+        Optional[Proxy]
+            A Proxy object if one is available, otherwise None.
         """
         pass
 
     @abstractmethod
-    def create_lease(self, proxy: Proxy, client_id: str) -> Lease:
-        """Create a new lease for a given proxy and client.
+    def create_lease(
+        self, proxy: Proxy, client_id: str, duration_seconds: int
+    ) -> Lease:
+        """Create a new lease for a given proxy and client for a specific duration.
 
-        :param proxy: The proxy to lease.
-        :param client_id: The ID of the client requesting the lease.
-        :return: The newly created Lease object.
+        This method calculates the `expires_at` field for the new lease based
+        on the current time and the provided `duration_seconds`. It is also
+        responsible for atomically incrementing the `current_leases` count on
+        the associated proxy.
+
+        Args:
+            proxy: The proxy to lease.
+            client_id: The ID of the client requesting the lease.
+            duration_seconds: The duration of the lease in seconds.
+
+        Returns
+        -------
+        Lease
+            The newly created Lease object.
         """
         pass
 
     @abstractmethod
     def release_lease(self, lease: Lease) -> None:
-        """Releases an existing lease.
+        """Release an existing lease.
 
-        :param lease: The lease to release.
+        This method is responsible for atomically decrementing the
+        `current_leases` count on the associated proxy.
+
+        Args:
+            lease: The lease to release.
+        """
+        pass
+
+    @abstractmethod
+    def cleanup_expired_leases(self) -> int:
+        """Find and release all expired leases.
+
+        This method should find all leases where `expires_at` is in the past
+        and `status` is 'active'. It should then release them, decrementing
+        the `current_leases` count on their respective proxies.
+
+        Returns
+        -------
+        int
+            The number of leases that were cleaned up.
         """
         pass

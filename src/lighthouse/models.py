@@ -65,6 +65,20 @@ class Proxy(BaseModel):
     longitude: Optional[float] = None
     isp: Optional[str] = None
     asn: Optional[int] = None
+    max_concurrency: Optional[int] = Field(
+        None,
+        gt=0,
+        description=(
+            "Maximum number of concurrent leases. If None, concurrency is unlimited."
+        ),
+    )
+    current_leases: int = Field(
+        0,
+        ge=0,
+        description=(
+            "The current number of active leases. Managed by the storage layer."
+        ),
+    )
 
 
 class ProxyPool(BaseModel):

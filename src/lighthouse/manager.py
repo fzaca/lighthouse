@@ -18,7 +18,11 @@ class ProxyManager:
         self._storage = storage
 
     def acquire_proxy(
-        self, pool_name: str, client_id: str, filters: Optional[ProxyFilters] = None
+        self,
+        pool_name: str,
+        client_id: str,
+        duration_seconds: int = 300,
+        filters: Optional[ProxyFilters] = None,
     ) -> Optional[Proxy]:
         """
         Acquire a proxy from a given pool for a specific client.
@@ -31,6 +35,8 @@ class ProxyManager:
             The name of the proxy pool.
         client_id : str
             The ID of the client acquiring the proxy.
+        duration_seconds : int, optional
+            The duration of the lease in seconds, by default 300.
         filters : Optional[ProxyFilters], optional
             Filtering criteria for selecting a proxy, by default None.
 
@@ -41,7 +47,7 @@ class ProxyManager:
         """
         proxy = self._storage.find_available_proxy(pool_name, filters)
         if proxy:
-            self._storage.create_lease(proxy, client_id)
+            self._storage.create_lease(proxy, client_id, duration_seconds)
             return proxy
 
         return None
@@ -55,4 +61,4 @@ class ProxyManager:
         lease : Lease
             The lease to be released.
         """
-        pass
+        self._storage.release_lease(lease)
