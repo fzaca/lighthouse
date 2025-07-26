@@ -16,7 +16,9 @@ class Proxy(BaseModel):
     protocol: str
     pool_name: str
     status: ProxyStatus = ProxyStatus.INACTIVE
-    last_checked_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_checked_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
     credentials: Optional[ProxyCredentials] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
     stats_lifetime: LifetimeStats = Field(default_factory=LifetimeStats)
@@ -27,6 +29,20 @@ class Proxy(BaseModel):
     longitude: Optional[float] = None
     isp: Optional[str] = None
     asn: Optional[int] = None
+    max_concurrency: Optional[int] = Field(
+        None,
+        gt=0,
+        description=(
+            "Maximum number of concurrent leases. If None, concurrency is unlimited."
+        ),
+    )
+    current_leases: int = Field(
+        0,
+        ge=0,
+        description=(
+            "The current number of active leases. Managed by the storage layer."
+        ),
+    )
 ```
 
 **Fields:**
@@ -48,6 +64,8 @@ class Proxy(BaseModel):
 *   `longitude`: The longitude of the proxy.
 *   `isp`: The ISP of the proxy.
 *   `asn`: The ASN of the proxy.
+*   `max_concurrency`: Maximum number of concurrent leases. If `None`, concurrency is unlimited.
+*   `current_leases`: The current number of active leases.
 
 ---
 
@@ -132,7 +150,11 @@ class ProxyFilters(BaseModel):
     # For geo-proximity searches
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    radius_km: Optional[int] = Field(None, gt=0, description="Search radius in kilometers for geo-proximity queries.")
+    radius_km: Optional[int] = Field(
+        None,
+        gt=0,
+        description="Search radius in kilometers for geo-proximity queries."
+    )
 ```
 
 **Fields:**
