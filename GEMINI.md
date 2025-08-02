@@ -13,6 +13,7 @@ You must internalize and apply these principles in every task:
 *   **Modularity:** You MUST design and implement all components (Leasing, Health Checking, Metrics, etc.) as logically separate and loosely coupled modules. This is critical for maintainability.
 *   **Persistence Abstraction:** You MUST NOT write code that directly depends on a specific database (like PostgreSQL or MongoDB). All database interactions must go through the abstract `IStorage` interface defined in the project. Your tasks may include implementing new adapters for this interface (e.g., `RedisStorageAdapter`).
 *   **Performance and Scalability:** Your code, especially for the Health Checking and Leasing components, MUST be written with performance in mind. Use efficient algorithms, data structures, and asynchronous patterns (`asyncio`) where appropriate.
+*   **Toolkit, Not a Framework:** This library MUST provide powerful, focused utilities (a "toolkit") rather than a rigid, all-encompassing system (a "framework"). You should expose granular, reusable functions and classes (like `HealthChecker.test_proxy`) and **avoid** implementing high-level, opinionated "runners" or "loops" (like a built-in cron job). The responsibility of orchestrating these utilities lies with the end-user of the library.
 
 ## 3. Core Directives & Nomenclatures
 
