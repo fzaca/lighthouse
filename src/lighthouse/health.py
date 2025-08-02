@@ -9,27 +9,14 @@ from .storage import IStorage
 class HealthChecker:
     """Runs health checks on proxies."""
 
-    def __init__(self, storage: IStorage):
+    def __init__(self, storage: IStorage, client: httpx.AsyncClient | None = None):
         self.storage = storage
+        self.client = client or httpx.AsyncClient()
         self.test_url = "https://httpbin.org/ip"
         self.timeout = 5.0
 
-    async def run_check(self) -> None:
-        """Fetch and test a batch of proxies."""
-        proxies_to_test = self.storage.get_proxies_to_check()
-        if not proxies_to_test:
-            return
-
-        async with httpx.AsyncClient() as client:
-            tasks = [self._test_single_proxy(client, p) for p in proxies_to_test]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        for res in results:
-            if isinstance(res, tuple):
-                proxy_id, status, latency = res
-                self.storage.update_proxy_health(proxy_id, status, latency)
-
-    async def _test_single_proxy(self, client, proxy):
+    async def test_proxy(self, client, proxy):
+        """Tests a single proxy and returns its status."""
         try:
             start_time = asyncio.get_event_loop().time()
             proxy_url = f"{proxy.protocol}://{proxy.host}:{proxy.port}"

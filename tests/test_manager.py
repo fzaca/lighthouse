@@ -65,6 +65,14 @@ class MockStorage(IStorage):
         # Not needed for these tests
         return 0
 
+    def update_proxy_health(
+        self, proxy_id: UUID, status: "ProxyStatus", latency: float
+    ) -> None:
+        """Update proxy health in mock storage."""
+        if proxy_id in self.proxies:
+            self.proxies[proxy_id].status = status
+            self.proxies[proxy_id].last_checked_at = datetime.now(timezone.utc)
+
     # Helper to add proxies for tests
     def add_proxy(self, proxy: Proxy):
         """Add a proxy to the mock storage."""
