@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Annotated, Any, Dict, Optional
+from typing import Annotated, Any, Dict, Optional, Union
 from urllib.parse import quote_plus
 from uuid import UUID, uuid4
 
@@ -49,7 +49,7 @@ class Proxy(BaseModel):
     """Represents a network proxy."""
 
     id: UUID = Field(default_factory=uuid4)
-    host: IPvAnyAddress
+    host: Union[IPvAnyAddress, str]
     port: int = Field(gt=0, le=65535)
     protocol: str
     pool_name: str
