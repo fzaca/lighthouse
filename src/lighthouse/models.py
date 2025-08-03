@@ -125,6 +125,7 @@ class HealthCheckResult(BaseModel):
     proxy_id: UUID
     status: ProxyStatus
     latency_ms: int
+    error_message: Optional[str] = None
 
 
 class ProxyFilters(BaseModel):
