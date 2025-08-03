@@ -24,13 +24,17 @@ async def test_test_proxy_active(
         host=ip_address("1.1.1.1"), port=80, protocol="http", pool_name="test"
     )
 
-    mock_client = mocker.AsyncMock(spec=httpx.AsyncClient)
     mock_response_ok = mocker.MagicMock(spec=httpx.Response)
     mock_response_ok.status_code = 200
     mock_response_ok.raise_for_status.return_value = None
 
+    mock_client = mocker.AsyncMock(spec=httpx.AsyncClient)
     mock_client.get.return_value = mock_response_ok
-    health_checker.client = mock_client
+
+    mock_cm = mocker.AsyncMock()
+    mock_cm.__aenter__.return_value = mock_client
+
+    mocker.patch("httpx.AsyncClient", return_value=mock_cm)
 
     result = await health_checker.check_proxy_health(proxy)
 
