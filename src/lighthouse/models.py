@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated, Any, Dict, Optional
+from urllib.parse import quote_plus
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, IPvAnyAddress
@@ -88,6 +89,21 @@ class Proxy(BaseModel):
             ),
         ),
     ] = 0
+
+    @property
+    def url(self) -> str:
+        """
+        Construct the full proxy URL, including credentials if they exist.
+
+        Credentials are URL-encoded to handle special characters safely.
+        """
+        auth_part = ""
+        if self.credentials:
+            user = quote_plus(self.credentials.user)
+            password = quote_plus(self.credentials.password)
+            auth_part = f"{user}:{password}@"
+
+        return f"{self.protocol}://{auth_part}{self.host}:{self.port}"
 
 
 class ProxyPool(BaseModel):
