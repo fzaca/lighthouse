@@ -119,6 +119,14 @@ class Client(BaseModel):
     api_key_hash: str
 
 
+class HealthCheckResult(BaseModel):
+    """Represents the result of a single proxy health check."""
+
+    proxy_id: UUID
+    status: ProxyStatus
+    latency_ms: int
+
+
 class ProxyFilters(BaseModel):
     """Represents the filters to apply when finding an available proxy."""
 
