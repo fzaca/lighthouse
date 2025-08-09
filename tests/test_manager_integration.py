@@ -1,9 +1,10 @@
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
 
 from lighthouse.manager import ProxyManager
-from lighthouse.models import Proxy, ProxyStatus
+from lighthouse.models import Lease, Proxy, ProxyStatus
 from lighthouse.storage.in_memory import InMemoryStorage
 
 # --- Fixtures: Reusable setup code for our tests ---
@@ -157,3 +158,114 @@ def test_acquire_from_non_existent_pool_returns_none(
         client_id=test_client_id
     )
     assert lease is None
+
+
+# --- Additional test cases for robustness ---
+
+
+def test_release_non_existent_lease_does_not_fail(
+    manager: ProxyManager,
+):
+    """
+    Test that releasing a lease that does not exist does not raise an error.
+
+    This ensures the operation is idempotent and safe to call even with
+    invalid data.
+    """
+    # SETUP: A fake lease that was never created in the storage
+    fake_lease = Lease(
+        proxy_id=uuid4(),
+        client_id=uuid4(),
+        expires_at=datetime.now(timezone.utc)
+    )
+
+    # ACT & ASSERT: The call should complete without raising an exception
+    try:
+        manager.release_proxy(fake_lease)
+    except Exception as e:
+        pytest.fail(f"Releasing a non-existent lease raised an exception: {e}")
+
+
+def test_releasing_a_lease_twice_is_safe(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """
+    Test that calling release_proxy multiple times for the same lease is safe.
+
+    The `current_leases` count should only be decremented once.
+    """
+    # SETUP
+    proxy = Proxy(
+        host="7.7.7.7",
+        port=8080,
+        protocol="http",
+        pool_name="double-release",
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=1,
+    )
+    storage.add_proxy(proxy)
+    lease = manager.acquire_proxy(pool_name="double-release", client_id=test_client_id)
+    assert storage.get_proxy_by_id(proxy.id).current_leases == 1
+
+    # ACT: Release the same lease twice
+    manager.release_proxy(lease)
+    assert storage.get_proxy_by_id(proxy.id).current_leases == 0
+
+    manager.release_proxy(lease)  # This second call should do nothing
+
+    # ASSERT: The count should not go below zero
+    assert storage.get_proxy_by_id(proxy.id).current_leases == 0
+
+
+def test_acquire_from_pool_with_no_available_proxies(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """Test that acquiring from a pool where all proxies are busy returns None."""
+    # SETUP: Two exclusive-use proxies in the same pool
+    proxy1 = Proxy(
+        host="8.8.8.8",
+        port=8001,
+        protocol="http",
+        pool_name="busy",
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=1
+    )
+    proxy2 = Proxy(
+        host="8.8.8.8", port=8002,
+        protocol="http",
+        pool_name="busy",
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=1
+    )
+    storage.add_proxy(proxy1)
+    storage.add_proxy(proxy2)
+
+    # ACT: Acquire both proxies, filling up the pool
+    assert manager.acquire_proxy(pool_name="busy", client_id=test_client_id) is not None
+    assert manager.acquire_proxy(pool_name="busy", client_id=test_client_id) is not None
+
+    # ASSERT: The next attempt should fail
+    assert manager.acquire_proxy(pool_name="busy", client_id=test_client_id) is None
+
+
+def test_create_lease_raises_value_error_for_non_existent_proxy(
+    storage: InMemoryStorage, test_client_id: uuid4
+):
+    """
+    Test that the storage layer raises ValueError for a non-existent proxy.
+
+    This is a lower-level test directly on the storage to ensure it
+    upholds its contract.
+    """
+    # SETUP: A proxy that exists in memory but NOT in the storage
+    proxy_not_in_storage = Proxy(
+        host="9.9.9.9", port=8080, protocol="http", pool_name="ghost"
+    )
+
+    # ACT & ASSERT
+    with pytest.raises(ValueError, match="not found in storage"):
+        storage.create_lease(
+            proxy=proxy_not_in_storage,
+            client_id=test_client_id,
+            duration_seconds=60,
+        )
