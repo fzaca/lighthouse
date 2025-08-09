@@ -1,0 +1,159 @@
+from uuid import uuid4
+
+import pytest
+
+from lighthouse.manager import ProxyManager
+from lighthouse.models import Proxy, ProxyStatus
+from lighthouse.storage.in_memory import InMemoryStorage
+
+# --- Fixtures: Reusable setup code for our tests ---
+
+
+@pytest.fixture
+def storage() -> InMemoryStorage:
+    """Provide a clean InMemoryStorage instance for each test."""
+    return InMemoryStorage()
+
+
+@pytest.fixture
+def manager(storage: InMemoryStorage) -> ProxyManager:
+    """Provide a ProxyManager instance configured with the in-memory storage."""
+    return ProxyManager(storage=storage)
+
+
+@pytest.fixture
+def test_client_id() -> uuid4:
+    """Provide a consistent client ID for tests."""
+    return uuid4()
+
+
+# --- Test Cases ---
+
+def test_acquire_and_release_flow(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """
+    Test the complete lifecycle: acquire a proxy and then release it.
+
+    This test verifies that the `current_leases` count is correctly
+    incremented on acquisition and decremented on release.
+    """
+    # 1. SETUP: Create a proxy and add it to the storage
+    proxy = Proxy(
+        host="1.1.1.1",
+        port=8080,
+        protocol="http",
+        pool_name="default",
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=1,
+    )
+    storage.add_proxy(proxy)
+
+    # 2. ACQUIRE: Get a lease for the proxy
+    lease = manager.acquire_proxy(pool_name="default", client_id=test_client_id)
+    assert lease is not None
+    assert lease.proxy_id == proxy.id
+
+    # 3. VERIFY ACQUISITION: Check the internal state of the storage
+    proxy_in_storage = storage.get_proxy_by_id(proxy.id)
+    assert proxy_in_storage is not None
+    assert proxy_in_storage.current_leases == 1
+
+    # 4. RELEASE: Release the lease
+    manager.release_proxy(lease)
+
+    # 5. VERIFY RELEASE: Check the state again
+    proxy_in_storage_after_release = storage.get_proxy_by_id(proxy.id)
+    assert proxy_in_storage_after_release is not None
+    assert proxy_in_storage_after_release.current_leases == 0
+
+
+def test_concurrency_limit_is_respected(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """Test that a proxy with a limited concurrency cannot be over-leased."""
+    # SETUP: A proxy that allows only 2 concurrent leases
+    proxy = Proxy(
+        host="2.2.2.2",
+        port=8080,
+        protocol="http",
+        pool_name="shared",
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=2,
+    )
+    storage.add_proxy(proxy)
+
+    # ACQUIRE up to the limit
+    lease1 = manager.acquire_proxy(pool_name="shared", client_id=test_client_id)
+    lease2 = manager.acquire_proxy(pool_name="shared", client_id=test_client_id)
+    assert lease1 is not None
+    assert lease2 is not None
+
+    # VERIFY state
+    proxy_in_storage = storage.get_proxy_by_id(proxy.id)
+    assert proxy_in_storage.current_leases == 2
+
+    # ATTEMPT TO EXCEED LIMIT: This call should fail
+    failed_lease = manager.acquire_proxy(pool_name="shared", client_id=test_client_id)
+    assert failed_lease is None, (
+        "Should not be able to acquire a proxy beyond its concurrency limit"
+    )
+
+
+def test_unlimited_concurrency(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """Test that a proxy with unlimited concurrency (`max_concurrency=None`).
+
+    This test ensures that a proxy configured without a concurrency limit
+    can be leased repeatedly without failure.
+    """
+    # SETUP: A proxy with no concurrency limit
+    proxy = Proxy(
+        host="3.3.3.3",
+        port=8080,
+        protocol="http",
+        pool_name="unlimited",
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=None,
+    )
+    storage.add_proxy(proxy)
+
+    # ACQUIRE multiple times
+    for i in range(10):
+        lease = manager.acquire_proxy(pool_name="unlimited", client_id=test_client_id)
+        assert lease is not None, f"Failed to acquire lease number {i+1}"
+
+    # VERIFY state
+    proxy_in_storage = storage.get_proxy_by_id(proxy.id)
+    assert proxy_in_storage.current_leases == 10
+
+
+def test_inactive_proxy_is_not_acquired(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """Test that a proxy marked as INACTIVE cannot be acquired."""
+    # SETUP: An inactive proxy
+    proxy = Proxy(
+        host="4.4.4.4",
+        port=8080,
+        protocol="http",
+        pool_name="default",
+        status=ProxyStatus.INACTIVE, # The key part of this test
+    )
+    storage.add_proxy(proxy)
+
+    # ATTEMPT ACQUISITION
+    lease = manager.acquire_proxy(pool_name="default", client_id=test_client_id)
+    assert lease is None
+
+
+def test_acquire_from_non_existent_pool_returns_none(
+    manager: ProxyManager, test_client_id: uuid4
+):
+    """Test that acquiring from a pool that doesn't exist returns None."""
+    lease = manager.acquire_proxy(
+        pool_name="non-existent-pool",
+        client_id=test_client_id
+    )
+    assert lease is None
