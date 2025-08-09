@@ -155,8 +155,11 @@ class ProxyFilters(BaseModel):
     # For geo-proximity searches
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    radius_km: Optional[int] = Field(
-        None,
-        gt=0,
-        description="Search radius in kilometers for geo-proximity queries."
-    )
+    radius_km: Annotated[
+        Optional[int],
+        Field(
+            None,
+            gt=0,
+            description="Search radius in kilometers for geo-proximity queries."
+        )
+    ] = None
