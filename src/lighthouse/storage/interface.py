@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Optional
-from uuid import UUID
 
-from lighthouse.models import Lease, Proxy, ProxyFilters, ProxyStatus
+from lighthouse.models import Lease, Proxy, ProxyFilters
 
 
 class IStorage(ABC):
@@ -79,11 +78,4 @@ class IStorage(ABC):
         int
             The number of leases that were cleaned up.
         """
-        pass
-
-    @abstractmethod
-    def update_proxy_health(
-        self, proxy_id: UUID, status: "ProxyStatus", latency: float
-    ) -> None:
-        """Update the health status and latency for a specific proxy."""
         pass
