@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 
 from lighthouse.manager import ProxyManager
-from lighthouse.models import Lease, Proxy, ProxyStatus
+from lighthouse.models import Lease, Proxy, ProxyFilters, ProxyStatus
 from lighthouse.storage.in_memory import InMemoryStorage
 
 # --- Fixtures: Reusable setup code for our tests ---
@@ -269,3 +269,121 @@ def test_create_lease_raises_value_error_for_non_existent_proxy(
             client_id=test_client_id,
             duration_seconds=60,
         )
+
+
+# --- Integration Tests for Filtering Logic ---
+
+
+def test_filtering_by_country_returns_correct_proxy(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """Test filtering skips unavailable proxies that match criteria.
+
+    This ensures that the core availability checks (status and concurrency)
+    are always applied before the attribute filters.
+    """
+    # SETUP: Two proxies in the same pool but with different countries
+    proxy_ar = Proxy(
+        host="1.1.1.1", port=8001, protocol="http", pool_name="geo",
+        status=ProxyStatus.ACTIVE, country="AR"
+    )
+    proxy_co = Proxy(
+        host="2.2.2.2", port=8002, protocol="http", pool_name="geo",
+        status=ProxyStatus.ACTIVE, country="CO"
+    )
+    storage.add_proxy(proxy_ar)
+    storage.add_proxy(proxy_co)
+
+    # ACT: Acquire a proxy with a filter for Argentina
+    filters = ProxyFilters(country="AR")
+    lease = manager.acquire_proxy(
+        pool_name="geo", client_id=test_client_id, filters=filters
+    )
+
+    # ASSERT: The leased proxy must be the one from Argentina
+    assert lease is not None
+    assert lease.proxy_id == proxy_ar.id
+
+
+def test_filtering_returns_none_if_no_match(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """Test that None is returned if no available proxy matches the filters."""
+    # SETUP: Only one proxy from Argentina is available
+    proxy_ar = Proxy(
+        host="1.1.1.1", port=8001, protocol="http", pool_name="geo",
+        status=ProxyStatus.ACTIVE, country="AR"
+    )
+    storage.add_proxy(proxy_ar)
+
+    # ACT: Try to acquire a proxy with a filter for Colombia
+    filters = ProxyFilters(country="CO")
+    lease = manager.acquire_proxy(
+        pool_name="geo", client_id=test_client_id, filters=filters
+    )
+
+    # ASSERT: No proxy should be found
+    assert lease is None
+
+
+def test_filtering_by_multiple_attributes(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """Test that filtering works correctly when multiple criteria are provided."""
+    # SETUP: A mix of proxies to test combined filters
+    proxy_ar_fast = Proxy(
+        host="1.1.1.1", port=8001, protocol="http", pool_name="multi",
+        status=ProxyStatus.ACTIVE, country="AR", source="fast-provider"
+    )
+    proxy_ar_slow = Proxy(
+        host="1.1.1.1", port=8002, protocol="http", pool_name="multi",
+        status=ProxyStatus.ACTIVE, country="AR", source="slow-provider"
+    )
+    storage.add_proxy(proxy_ar_fast)
+    storage.add_proxy(proxy_ar_slow)
+
+    # ACT: Filter by both country and source
+    filters = ProxyFilters(country="AR", source="fast-provider")
+    lease = manager.acquire_proxy(
+        pool_name="multi", client_id=test_client_id, filters=filters
+    )
+
+    # ASSERT: Only the proxy matching both criteria should be returned
+    assert lease is not None
+    assert lease.proxy_id == proxy_ar_fast.id
+
+
+def test_filtering_respects_concurrency_and_status(
+    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+):
+    """Test that filtering skips unavailable proxies that match criteria.
+
+    This ensures that the core availability checks (status and concurrency)
+    are always applied before the attribute filters.
+    """
+    # SETUP: Two proxies match the filter, but one is busy and one is inactive
+    proxy_ar_busy = Proxy(
+        host="1.1.1.1", port=8001, protocol="http", pool_name="combo",
+        status=ProxyStatus.ACTIVE, country="AR", max_concurrency=1, current_leases=1
+    )
+    proxy_ar_inactive = Proxy(
+        host="1.1.1.1", port=8002, protocol="http", pool_name="combo",
+        status=ProxyStatus.INACTIVE, country="AR"
+    )
+    proxy_ar_available = Proxy(
+        host="1.1.1.1", port=8003, protocol="http", pool_name="combo",
+        status=ProxyStatus.ACTIVE, country="AR", max_concurrency=1
+    )
+    storage.add_proxy(proxy_ar_busy)
+    storage.add_proxy(proxy_ar_inactive)
+    storage.add_proxy(proxy_ar_available)
+
+    # ACT: Filter by country. The logic should skip the first two and find the third.
+    filters = ProxyFilters(country="AR")
+    lease = manager.acquire_proxy(
+        pool_name="combo", client_id=test_client_id, filters=filters
+    )
+
+    # ASSERT: The only truly available proxy should be leased
+    assert lease is not None
+    assert lease.proxy_id == proxy_ar_available.id
