@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Optional
+from uuid import UUID
 
 from lighthouse.models import Lease, Proxy, ProxyFilters
 
@@ -11,7 +12,7 @@ class IStorage(ABC):
 
     @abstractmethod
     def find_available_proxy(
-        self, pool_name: str, filters: Optional[ProxyFilters] = None
+        self, pool_id: UUID, filters: Optional[ProxyFilters] = None
     ) -> Optional[Proxy]:
         """Find an available proxy that meets the concurrency criteria.
 
@@ -20,7 +21,7 @@ class IStorage(ABC):
         It also optionally matches a set of filters.
 
         Args:
-            pool_name: The name of the pool to search in.
+            pool_id: The ID of the pool to search in.
             filters: Optional criteria to filter proxies by.
 
         Returns
@@ -32,7 +33,7 @@ class IStorage(ABC):
 
     @abstractmethod
     def create_lease(
-        self, proxy: Proxy, client_id: str, duration_seconds: int
+        self, proxy: Proxy, client_id: UUID, duration_seconds: int
     ) -> Lease:
         """Create a new lease for a given proxy and client for a specific duration.
 

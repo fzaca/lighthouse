@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -7,31 +7,12 @@ from lighthouse.manager import ProxyManager
 from lighthouse.models import Lease, Proxy, ProxyFilters, ProxyStatus
 from lighthouse.storage.in_memory import InMemoryStorage
 
-# --- Fixtures: Reusable setup code for our tests ---
-
-
-@pytest.fixture
-def storage() -> InMemoryStorage:
-    """Provide a clean InMemoryStorage instance for each test."""
-    return InMemoryStorage()
-
-
-@pytest.fixture
-def manager(storage: InMemoryStorage) -> ProxyManager:
-    """Provide a ProxyManager instance configured with the in-memory storage."""
-    return ProxyManager(storage=storage)
-
-
-@pytest.fixture
-def test_client_id() -> uuid4:
-    """Provide a consistent client ID for tests."""
-    return uuid4()
-
-
 # --- Test Cases ---
 
+
 def test_acquire_and_release_flow(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
     """
     Test the complete lifecycle: acquire a proxy and then release it.
@@ -44,14 +25,14 @@ def test_acquire_and_release_flow(
         host="1.1.1.1",
         port=8080,
         protocol="http",
-        pool_name="default",
+        pool_id=test_pool_id,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1,
     )
     storage.add_proxy(proxy)
 
     # 2. ACQUIRE: Get a lease for the proxy
-    lease = manager.acquire_proxy(pool_name="default", client_id=test_client_id)
+    lease = manager.acquire_proxy(pool_id=test_pool_id, client_id=test_client_id)
     assert lease is not None
     assert lease.proxy_id == proxy.id
 
@@ -70,7 +51,8 @@ def test_acquire_and_release_flow(
 
 
 def test_concurrency_limit_is_respected(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
     """Test that a proxy with a limited concurrency cannot be over-leased."""
     # SETUP: A proxy that allows only 2 concurrent leases
@@ -78,15 +60,15 @@ def test_concurrency_limit_is_respected(
         host="2.2.2.2",
         port=8080,
         protocol="http",
-        pool_name="shared",
+        pool_id=test_pool_id,
         status=ProxyStatus.ACTIVE,
         max_concurrency=2,
     )
     storage.add_proxy(proxy)
 
     # ACQUIRE up to the limit
-    lease1 = manager.acquire_proxy(pool_name="shared", client_id=test_client_id)
-    lease2 = manager.acquire_proxy(pool_name="shared", client_id=test_client_id)
+    lease1 = manager.acquire_proxy(pool_id=test_pool_id, client_id=test_client_id)
+    lease2 = manager.acquire_proxy(pool_id=test_pool_id, client_id=test_client_id)
     assert lease1 is not None
     assert lease2 is not None
 
@@ -95,14 +77,15 @@ def test_concurrency_limit_is_respected(
     assert proxy_in_storage.current_leases == 2
 
     # ATTEMPT TO EXCEED LIMIT: This call should fail
-    failed_lease = manager.acquire_proxy(pool_name="shared", client_id=test_client_id)
+    failed_lease = manager.acquire_proxy(pool_id=test_pool_id, client_id=test_client_id)
     assert failed_lease is None, (
         "Should not be able to acquire a proxy beyond its concurrency limit"
     )
 
 
 def test_unlimited_concurrency(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
     """Test that a proxy with unlimited concurrency (`max_concurrency=None`).
 
@@ -114,7 +97,7 @@ def test_unlimited_concurrency(
         host="3.3.3.3",
         port=8080,
         protocol="http",
-        pool_name="unlimited",
+        pool_id=test_pool_id,
         status=ProxyStatus.ACTIVE,
         max_concurrency=None,
     )
@@ -122,7 +105,7 @@ def test_unlimited_concurrency(
 
     # ACQUIRE multiple times
     for i in range(10):
-        lease = manager.acquire_proxy(pool_name="unlimited", client_id=test_client_id)
+        lease = manager.acquire_proxy(pool_id=test_pool_id, client_id=test_client_id)
         assert lease is not None, f"Failed to acquire lease number {i+1}"
 
     # VERIFY state
@@ -131,7 +114,8 @@ def test_unlimited_concurrency(
 
 
 def test_inactive_proxy_is_not_acquired(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
     """Test that a proxy marked as INACTIVE cannot be acquired."""
     # SETUP: An inactive proxy
@@ -139,22 +123,23 @@ def test_inactive_proxy_is_not_acquired(
         host="4.4.4.4",
         port=8080,
         protocol="http",
-        pool_name="default",
-        status=ProxyStatus.INACTIVE, # The key part of this test
+        pool_id=test_pool_id,
+        status=ProxyStatus.INACTIVE,
     )
     storage.add_proxy(proxy)
 
     # ATTEMPT ACQUISITION
-    lease = manager.acquire_proxy(pool_name="default", client_id=test_client_id)
+    lease = manager.acquire_proxy(pool_id=test_pool_id, client_id=test_client_id)
     assert lease is None
 
 
 def test_acquire_from_non_existent_pool_returns_none(
-    manager: ProxyManager, test_client_id: uuid4
+    manager: ProxyManager, test_client_id: UUID
 ):
     """Test that acquiring from a pool that doesn't exist returns None."""
+    non_existent_pool_id = uuid4()
     lease = manager.acquire_proxy(
-        pool_name="non-existent-pool",
+        pool_id=non_existent_pool_id,
         client_id=test_client_id
     )
     assert lease is None
@@ -187,7 +172,8 @@ def test_release_non_existent_lease_does_not_fail(
 
 
 def test_releasing_a_lease_twice_is_safe(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
     """
     Test that calling release_proxy multiple times for the same lease is safe.
@@ -199,12 +185,12 @@ def test_releasing_a_lease_twice_is_safe(
         host="7.7.7.7",
         port=8080,
         protocol="http",
-        pool_name="double-release",
+        pool_id=test_pool_id,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1,
     )
     storage.add_proxy(proxy)
-    lease = manager.acquire_proxy(pool_name="double-release", client_id=test_client_id)
+    lease = manager.acquire_proxy(pool_id=test_pool_id, client_id=test_client_id)
     assert storage.get_proxy_by_id(proxy.id).current_leases == 1
 
     # ACT: Release the same lease twice
@@ -218,7 +204,8 @@ def test_releasing_a_lease_twice_is_safe(
 
 
 def test_acquire_from_pool_with_no_available_proxies(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
     """Test that acquiring from a pool where all proxies are busy returns None."""
     # SETUP: Two exclusive-use proxies in the same pool
@@ -226,14 +213,15 @@ def test_acquire_from_pool_with_no_available_proxies(
         host="8.8.8.8",
         port=8001,
         protocol="http",
-        pool_name="busy",
+        pool_id=test_pool_id,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1
     )
     proxy2 = Proxy(
-        host="8.8.8.8", port=8002,
+        host="8.8.8.8",
+        port=8002,
         protocol="http",
-        pool_name="busy",
+        pool_id=test_pool_id,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1
     )
@@ -241,15 +229,19 @@ def test_acquire_from_pool_with_no_available_proxies(
     storage.add_proxy(proxy2)
 
     # ACT: Acquire both proxies, filling up the pool
-    assert manager.acquire_proxy(pool_name="busy", client_id=test_client_id) is not None
-    assert manager.acquire_proxy(pool_name="busy", client_id=test_client_id) is not None
+    assert manager.acquire_proxy(
+        pool_id=test_pool_id, client_id=test_client_id
+    ) is not None
+    assert manager.acquire_proxy(
+        pool_id=test_pool_id, client_id=test_client_id
+    ) is not None
 
     # ASSERT: The next attempt should fail
-    assert manager.acquire_proxy(pool_name="busy", client_id=test_client_id) is None
+    assert manager.acquire_proxy(pool_id=test_pool_id, client_id=test_client_id) is None
 
 
 def test_create_lease_raises_value_error_for_non_existent_proxy(
-    storage: InMemoryStorage, test_client_id: uuid4
+    storage: InMemoryStorage, test_client_id: UUID, test_pool_id: UUID
 ):
     """
     Test that the storage layer raises ValueError for a non-existent proxy.
@@ -259,7 +251,7 @@ def test_create_lease_raises_value_error_for_non_existent_proxy(
     """
     # SETUP: A proxy that exists in memory but NOT in the storage
     proxy_not_in_storage = Proxy(
-        host="9.9.9.9", port=8080, protocol="http", pool_name="ghost"
+        host="9.9.9.9", port=8080, protocol="http", pool_id=test_pool_id
     )
 
     # ACT & ASSERT
@@ -275,21 +267,26 @@ def test_create_lease_raises_value_error_for_non_existent_proxy(
 
 
 def test_filtering_by_country_returns_correct_proxy(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
-    """Test filtering skips unavailable proxies that match criteria.
-
-    This ensures that the core availability checks (status and concurrency)
-    are always applied before the attribute filters.
-    """
+    """Test that acquiring a proxy can be successfully filtered by country."""
     # SETUP: Two proxies in the same pool but with different countries
     proxy_ar = Proxy(
-        host="1.1.1.1", port=8001, protocol="http", pool_name="geo",
-        status=ProxyStatus.ACTIVE, country="AR"
+        host="1.1.1.1",
+        port=8001,
+        protocol="http",
+        pool_id=test_pool_id,
+        status=ProxyStatus.ACTIVE,
+        country="AR"
     )
     proxy_co = Proxy(
-        host="2.2.2.2", port=8002, protocol="http", pool_name="geo",
-        status=ProxyStatus.ACTIVE, country="CO"
+        host="2.2.2.2",
+        port=8002,
+        protocol="http",
+        pool_id=test_pool_id,
+        status=ProxyStatus.ACTIVE,
+        country="CO"
     )
     storage.add_proxy(proxy_ar)
     storage.add_proxy(proxy_co)
@@ -297,7 +294,7 @@ def test_filtering_by_country_returns_correct_proxy(
     # ACT: Acquire a proxy with a filter for Argentina
     filters = ProxyFilters(country="AR")
     lease = manager.acquire_proxy(
-        pool_name="geo", client_id=test_client_id, filters=filters
+        pool_id=test_pool_id, client_id=test_client_id, filters=filters
     )
 
     # ASSERT: The leased proxy must be the one from Argentina
@@ -306,20 +303,25 @@ def test_filtering_by_country_returns_correct_proxy(
 
 
 def test_filtering_returns_none_if_no_match(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
     """Test that None is returned if no available proxy matches the filters."""
     # SETUP: Only one proxy from Argentina is available
     proxy_ar = Proxy(
-        host="1.1.1.1", port=8001, protocol="http", pool_name="geo",
-        status=ProxyStatus.ACTIVE, country="AR"
+        host="1.1.1.1",
+        port=8001,
+        protocol="http",
+        pool_id=test_pool_id,
+        status=ProxyStatus.ACTIVE,
+        country="AR"
     )
     storage.add_proxy(proxy_ar)
 
     # ACT: Try to acquire a proxy with a filter for Colombia
     filters = ProxyFilters(country="CO")
     lease = manager.acquire_proxy(
-        pool_name="geo", client_id=test_client_id, filters=filters
+        pool_id=test_pool_id, client_id=test_client_id, filters=filters
     )
 
     # ASSERT: No proxy should be found
@@ -327,17 +329,28 @@ def test_filtering_returns_none_if_no_match(
 
 
 def test_filtering_by_multiple_attributes(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
     """Test that filtering works correctly when multiple criteria are provided."""
     # SETUP: A mix of proxies to test combined filters
     proxy_ar_fast = Proxy(
-        host="1.1.1.1", port=8001, protocol="http", pool_name="multi",
-        status=ProxyStatus.ACTIVE, country="AR", source="fast-provider"
+        host="1.1.1.1",
+        port=8001,
+        protocol="http",
+        pool_id=test_pool_id,
+        status=ProxyStatus.ACTIVE,
+        country="AR",
+        source="fast-provider"
     )
     proxy_ar_slow = Proxy(
-        host="1.1.1.1", port=8002, protocol="http", pool_name="multi",
-        status=ProxyStatus.ACTIVE, country="AR", source="slow-provider"
+        host="1.1.1.1",
+        port=8002,
+        protocol="http",
+        pool_id=test_pool_id,
+        status=ProxyStatus.ACTIVE,
+        country="AR",
+        source="slow-provider"
     )
     storage.add_proxy(proxy_ar_fast)
     storage.add_proxy(proxy_ar_slow)
@@ -345,7 +358,7 @@ def test_filtering_by_multiple_attributes(
     # ACT: Filter by both country and source
     filters = ProxyFilters(country="AR", source="fast-provider")
     lease = manager.acquire_proxy(
-        pool_name="multi", client_id=test_client_id, filters=filters
+        pool_id=test_pool_id, client_id=test_client_id, filters=filters
     )
 
     # ASSERT: Only the proxy matching both criteria should be returned
@@ -354,24 +367,21 @@ def test_filtering_by_multiple_attributes(
 
 
 def test_filtering_respects_concurrency_and_status(
-    manager: ProxyManager, storage: InMemoryStorage, test_client_id: uuid4
+    manager: ProxyManager, storage: InMemoryStorage,
+    test_client_id: UUID, test_pool_id: UUID
 ):
-    """Test that filtering skips unavailable proxies that match criteria.
-
-    This ensures that the core availability checks (status and concurrency)
-    are always applied before the attribute filters.
-    """
+    """Test that filtering skips unavailable proxies that match criteria."""
     # SETUP: Two proxies match the filter, but one is busy and one is inactive
     proxy_ar_busy = Proxy(
-        host="1.1.1.1", port=8001, protocol="http", pool_name="combo",
+        host="1.1.1.1", port=8001, protocol="http", pool_id=test_pool_id,
         status=ProxyStatus.ACTIVE, country="AR", max_concurrency=1, current_leases=1
     )
     proxy_ar_inactive = Proxy(
-        host="1.1.1.1", port=8002, protocol="http", pool_name="combo",
+        host="1.1.1.1", port=8002, protocol="http", pool_id=test_pool_id,
         status=ProxyStatus.INACTIVE, country="AR"
     )
     proxy_ar_available = Proxy(
-        host="1.1.1.1", port=8003, protocol="http", pool_name="combo",
+        host="1.1.1.1", port=8003, protocol="http", pool_id=test_pool_id,
         status=ProxyStatus.ACTIVE, country="AR", max_concurrency=1
     )
     storage.add_proxy(proxy_ar_busy)
@@ -381,7 +391,7 @@ def test_filtering_respects_concurrency_and_status(
     # ACT: Filter by country. The logic should skip the first two and find the third.
     filters = ProxyFilters(country="AR")
     lease = manager.acquire_proxy(
-        pool_name="combo", client_id=test_client_id, filters=filters
+        pool_id=test_pool_id, client_id=test_client_id, filters=filters
     )
 
     # ASSERT: The only truly available proxy should be leased

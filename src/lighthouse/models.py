@@ -52,7 +52,7 @@ class Proxy(BaseModel):
     host: Union[IPvAnyAddress, str]
     port: int = Field(gt=0, le=65535)
     protocol: str
-    pool_name: str
+    pool_id: UUID
     status: ProxyStatus = ProxyStatus.INACTIVE
     last_checked_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
@@ -109,6 +109,7 @@ class Proxy(BaseModel):
 class ProxyPool(BaseModel):
     """Represents a collection of proxies with a shared configuration."""
 
+    id: UUID = Field(default_factory=uuid4)
     name: str
     description: Optional[str] = None
     config: Dict[str, Any] = Field(default_factory=dict)

@@ -67,9 +67,9 @@ class InMemoryStorage(IStorage):
 
     def __init__(self):
         self._lock = threading.RLock()
-        self._pools: Dict[str, _InMemoryPool] = {}
+        self._pools: Dict[UUID, _InMemoryPool] = {}
         self._leases: Dict[UUID, Lease] = {}
-        self._proxy_id_to_pool_name: Dict[UUID, str] = {}
+        self._proxy_id_to_pool_id: Dict[UUID, UUID] = {}
 
     # --- Helper methods for tests ---
 
@@ -77,18 +77,18 @@ class InMemoryStorage(IStorage):
         """Help method to add a proxy to the storage for testing."""
         with self._lock:
             p_copy = proxy.model_copy(deep=True)
-            pool_name = p_copy.pool_name
-            if pool_name not in self._pools:
-                self._pools[pool_name] = _InMemoryPool(name=pool_name)
-            self._pools[pool_name].add_proxy(p_copy)
-            self._proxy_id_to_pool_name[p_copy.id] = pool_name
+            pool_id = p_copy.pool_id
+            if pool_id not in self._pools:
+                self._pools[pool_id] = _InMemoryPool(name=pool_id)
+            self._pools[pool_id].add_proxy(p_copy)
+            self._proxy_id_to_pool_id[p_copy.id] = pool_id
 
     def get_proxy_by_id(self, proxy_id: UUID) -> Optional[Proxy]:
         """Help method to retrieve a proxy directly by its ID for testing."""
         with self._lock:
-            pool_name = self._proxy_id_to_pool_name.get(proxy_id)
-            if pool_name:
-                if pool := self._pools.get(pool_name):
+            pool_id = self._proxy_id_to_pool_id.get(proxy_id)
+            if pool_id:
+                if pool := self._pools.get(pool_id):
                     if proxy := pool.get_proxy(proxy_id):
                         return proxy.model_copy(deep=True)
         return None
@@ -96,7 +96,7 @@ class InMemoryStorage(IStorage):
     # --- IStorage Implementation ---
 
     def find_available_proxy(
-        self, pool_name: str, filters: Optional[ProxyFilters] = None
+        self, pool_id: UUID, filters: Optional[ProxyFilters] = None
     ) -> Optional[Proxy]:
         """Find an available proxy that meets the specified criteria.
 
@@ -105,7 +105,7 @@ class InMemoryStorage(IStorage):
         matches the optional filters provided.
 
         Args:
-            pool_name: The name of the pool to search in.
+            pool_id: The ID of the pool to search in.
             filters: Optional criteria to filter proxies by.
 
         Returns
@@ -113,7 +113,7 @@ class InMemoryStorage(IStorage):
             A Proxy object if one is available, otherwise None.
         """
         with self._lock:
-            pool = self._pools.get(pool_name)
+            pool = self._pools.get(pool_id)
             if not pool:
                 return None
 
@@ -170,7 +170,7 @@ class InMemoryStorage(IStorage):
 
             self._leases[lease.id] = lease
 
-            pool = self._pools[proxy_in_storage.pool_name]
+            pool = self._pools[proxy_in_storage.pool_id]
             pool.proxies[proxy_in_storage.id].current_leases += 1
 
             return lease.model_copy(deep=True)
@@ -194,7 +194,7 @@ class InMemoryStorage(IStorage):
 
             proxy_in_storage = self.get_proxy_by_id(lease.proxy_id)
             if proxy_in_storage:
-                pool = self._pools[proxy_in_storage.pool_name]
+                pool = self._pools[proxy_in_storage.pool_id]
                 pool.proxies[proxy_in_storage.id].current_leases = max(
                     0, pool.proxies[proxy_in_storage.id].current_leases - 1
                 )

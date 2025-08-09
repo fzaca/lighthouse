@@ -1,5 +1,6 @@
 import asyncio
 from ipaddress import ip_address
+from uuid import UUID
 
 import httpx
 import pytest
@@ -17,11 +18,11 @@ def health_checker() -> HealthChecker:
 
 @pytest.mark.asyncio
 async def test_test_proxy_active(
-    mocker: MockerFixture, health_checker: HealthChecker
+    mocker: MockerFixture, health_checker: HealthChecker, test_pool_id: UUID
 ):
     """Test that an active proxy is correctly identified."""
     proxy = Proxy(
-        host=ip_address("1.1.1.1"), port=80, protocol="http", pool_name="test"
+        host=ip_address("1.1.1.1"), port=80, protocol="http", pool_id=test_pool_id
     )
 
     mock_response_ok = mocker.MagicMock(spec=httpx.Response)
@@ -45,12 +46,16 @@ async def test_test_proxy_active(
 
 @pytest.mark.asyncio
 async def test_stream_health_checks(
-    mocker: MockerFixture, health_checker: HealthChecker
+    mocker: MockerFixture, health_checker: HealthChecker, test_pool_id: UUID
 ):
     """Test that streaming health checks yields results as they complete."""
     proxies = [
-        Proxy(host=ip_address("1.1.1.1"), port=80, protocol="http", pool_name="test"),
-        Proxy(host=ip_address("2.2.2.2"), port=8080, protocol="http", pool_name="test"),
+        Proxy(
+            host=ip_address("1.1.1.1"), port=80, protocol="http", pool_id=test_pool_id
+        ),
+        Proxy(
+            host=ip_address("2.2.2.2"), port=8080, protocol="http", pool_id=test_pool_id
+        ),
     ]
 
     async def mock_check_proxy_health(proxy: Proxy):
