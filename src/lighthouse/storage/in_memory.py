@@ -76,7 +76,7 @@ class InMemoryStorage(IStorage):
     def add_proxy(self, proxy: Proxy):
         """Help method to add a proxy to the storage for testing."""
         with self._lock:
-            p_copy = proxy.copy(deep=True)
+            p_copy = proxy.model_copy(deep=True)
             pool_name = p_copy.pool_name
             if pool_name not in self._pools:
                 self._pools[pool_name] = _InMemoryPool(name=pool_name)
@@ -90,7 +90,7 @@ class InMemoryStorage(IStorage):
             if pool_name:
                 if pool := self._pools.get(pool_name):
                     if proxy := pool.get_proxy(proxy_id):
-                        return proxy.copy(deep=True)
+                        return proxy.model_copy(deep=True)
         return None
 
     # --- IStorage Implementation ---
@@ -119,7 +119,7 @@ class InMemoryStorage(IStorage):
 
             proxy_found = pool.find_available_proxy(filters)
             if proxy_found:
-                return proxy_found.copy(deep=True)
+                return proxy_found.model_copy(deep=True)
         return None
 
     def create_lease(
@@ -173,7 +173,7 @@ class InMemoryStorage(IStorage):
             pool = self._pools[proxy_in_storage.pool_name]
             pool.proxies[proxy_in_storage.id].current_leases += 1
 
-            return lease.copy(deep=True)
+            return lease.model_copy(deep=True)
 
     def release_lease(self, lease: Lease) -> None:
         """Release an existing lease and free up a concurrency slot.
