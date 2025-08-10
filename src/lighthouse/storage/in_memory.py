@@ -4,41 +4,42 @@ from typing import Dict, Optional
 from uuid import UUID
 
 from lighthouse.models import (
+    Client,
     Lease,
     LeaseStatus,
     Proxy,
     ProxyFilters,
-    ProxyStatus,
+    ProxyPool,
 )
 from lighthouse.storage.interface import IStorage
 
 
 class _InMemoryPool:
-    """Represents a single pool of proxies in memory. (Internal class)."""
+    """Represent a single pool of proxies in memory. (Internal class)."""
 
     def __init__(self, name: str):
         self.name = name
         self.proxies: Dict[UUID, Proxy] = {}
 
     def add_proxy(self, proxy: Proxy):
+        """Add a proxy to the pool's internal dictionary."""
         self.proxies[proxy.id] = proxy
 
     def get_proxy(self, proxy_id: UUID) -> Optional[Proxy]:
+        """Get a proxy from the pool by its ID."""
         return self.proxies.get(proxy_id)
 
     def find_available_proxy(self, filters: Optional[ProxyFilters]) -> Optional[Proxy]:
         """Find the first available proxy in this pool that matches filters."""
         for proxy in self.proxies.values():
-            if proxy.status != ProxyStatus.ACTIVE:
+            if proxy.status != "active":
                 continue
-
             is_available = (
                 proxy.max_concurrency is None
                 or proxy.current_leases < proxy.max_concurrency
             )
             if not is_available:
                 continue
-
             if self._proxy_matches_filters(proxy, filters):
                 return proxy
         return None
@@ -46,7 +47,7 @@ class _InMemoryPool:
     def _proxy_matches_filters(
         self, proxy: Proxy, filters: Optional[ProxyFilters]
     ) -> bool:
-        """Help method to check if a proxy matches all provided filters."""
+        """Check if a proxy matches all provided filters."""
         if not filters:
             return True
         if filters.source and proxy.source != filters.source:
@@ -63,28 +64,80 @@ class _InMemoryPool:
 
 
 class InMemoryStorage(IStorage):
-    """An object-oriented, thread-safe in-memory storage implementation."""
+    """
+    An object-oriented, thread-safe in-memory storage implementation.
+
+    This adapter simulates a database in memory, making it ideal for testing
+    and development environments.
+    """
 
     def __init__(self):
+        """Initialize the in-memory storage."""
         self._lock = threading.RLock()
         self._pools: Dict[UUID, _InMemoryPool] = {}
+        self._proxy_pools: Dict[UUID, ProxyPool] = {}
+        self._clients: Dict[UUID, Client] = {}
         self._leases: Dict[UUID, Lease] = {}
+
+        self._pool_name_to_id: Dict[str, UUID] = {}
+        self._client_name_to_id: Dict[str, UUID] = {}
         self._proxy_id_to_pool_id: Dict[UUID, UUID] = {}
 
-    # --- Helper methods for tests ---
+    def add_pool(self, pool: ProxyPool):
+        """Add a proxy pool to the storage for testing.
+
+        Args:
+        ----
+            pool: The ProxyPool object to add.
+        """
+        with self._lock:
+            pool_copy = pool.model_copy(deep=True)
+            self._proxy_pools[pool_copy.id] = pool_copy
+            self._pool_name_to_id[pool_copy.name] = pool_copy.id
+            self._pools[pool_copy.id] = _InMemoryPool(name=pool_copy.name)
+
+    def add_client(self, client: Client):
+        """Add a client to the storage for testing.
+
+        Args:
+        ----
+            client: The Client object to add.
+        """
+        with self._lock:
+            client_copy = client.model_copy(deep=True)
+            self._clients[client_copy.id] = client_copy
+            self._client_name_to_id[client_copy.name] = client_copy.id
 
     def add_proxy(self, proxy: Proxy):
-        """Help method to add a proxy to the storage for testing."""
+        """Add a proxy to its corresponding pool in the storage.
+
+        Args:
+        ----
+            proxy: The Proxy object to add.
+
+        Raises
+        ------
+            ValueError: If the proxy's pool_id does not exist in the storage.
+        """
         with self._lock:
             p_copy = proxy.model_copy(deep=True)
             pool_id = p_copy.pool_id
             if pool_id not in self._pools:
-                self._pools[pool_id] = _InMemoryPool(name=pool_id)
+                raise ValueError(f"Pool with ID {pool_id} does not exist.")
             self._pools[pool_id].add_proxy(p_copy)
             self._proxy_id_to_pool_id[p_copy.id] = pool_id
 
     def get_proxy_by_id(self, proxy_id: UUID) -> Optional[Proxy]:
-        """Help method to retrieve a proxy directly by its ID for testing."""
+        """Retrieve a proxy directly by its ID.
+
+        Args:
+        ----
+            proxy_id: The UUID of the proxy to retrieve.
+
+        Returns
+        -------
+            A copy of the Proxy object if found, otherwise None.
+        """
         with self._lock:
             pool_id = self._proxy_id_to_pool_id.get(proxy_id)
             if pool_id:
@@ -93,26 +146,15 @@ class InMemoryStorage(IStorage):
                         return proxy.model_copy(deep=True)
         return None
 
-    # --- IStorage Implementation ---
-
     def find_available_proxy(
-        self, pool_id: UUID, filters: Optional[ProxyFilters] = None
+        self, pool_name: str, filters: Optional[ProxyFilters] = None
     ) -> Optional[Proxy]:
-        """Find an available proxy that meets the specified criteria.
-
-        This implementation retrieves the first available proxy from the
-        given pool that is active, has available concurrency slots, and
-        matches the optional filters provided.
-
-        Args:
-            pool_id: The ID of the pool to search in.
-            filters: Optional criteria to filter proxies by.
-
-        Returns
-        -------
-            A Proxy object if one is available, otherwise None.
-        """
+        """Find an available proxy from a named pool that meets the criteria."""
         with self._lock:
+            pool_id = self._pool_name_to_id.get(pool_name)
+            if not pool_id:
+                return None
+
             pool = self._pools.get(pool_id)
             if not pool:
                 return None
@@ -123,30 +165,14 @@ class InMemoryStorage(IStorage):
         return None
 
     def create_lease(
-        self, proxy: Proxy, client_id: UUID, duration_seconds: int
+        self, proxy: Proxy, client_name: str, duration_seconds: int
     ) -> Lease:
-        """Create a new lease for a given proxy and client.
-
-        This method generates a new lease record with a calculated expiration
-        time and atomically increments the `current_leases` count on the
-        proxy object within the storage.
-
-        Args:
-            proxy: The proxy to lease.
-            client_id: The ID of the client requesting the lease.
-            duration_seconds: The duration of the lease in seconds.
-
-        Returns
-        -------
-            The newly created Lease object.
-
-        Raises
-        ------
-            ValueError: If the proxy with the given ID is not found in storage.
-            RuntimeError: If the proxy is no longer available (e.g., due to a
-                race condition).
-        """
+        """Create a new lease for a given proxy and client name."""
         with self._lock:
+            client_id = self._client_name_to_id.get(client_name)
+            if not client_id:
+                raise ValueError(f"Client with name '{client_name}' not found.")
+
             proxy_in_storage = self.get_proxy_by_id(proxy.id)
             if not proxy_in_storage:
                 raise ValueError(f"Proxy with ID {proxy.id} not found in storage.")
@@ -176,14 +202,7 @@ class InMemoryStorage(IStorage):
             return lease.model_copy(deep=True)
 
     def release_lease(self, lease: Lease) -> None:
-        """Release an existing lease and free up a concurrency slot.
-
-        This method marks a lease as released and atomically decrements the
-        `current_leases` count on the associated proxy.
-
-        Args:
-            lease: The lease to release.
-        """
+        """Release an existing lease."""
         with self._lock:
             lease_in_storage = self._leases.get(lease.id)
             if not lease_in_storage or lease_in_storage.status == LeaseStatus.RELEASED:
@@ -200,15 +219,7 @@ class InMemoryStorage(IStorage):
                 )
 
     def cleanup_expired_leases(self) -> int:
-        """Find and release all expired leases.
-
-        This method iterates through all active leases, identifies those
-        whose `expires_at` timestamp is in the past, and releases them.
-
-        Returns
-        -------
-            The number of leases that were cleaned up.
-        """
+        """Find and release all expired leases."""
         with self._lock:
             now = datetime.now(timezone.utc)
             leases_to_check = list(self._leases.values())
@@ -216,8 +227,6 @@ class InMemoryStorage(IStorage):
                 lease for lease in leases_to_check
                 if lease.status == LeaseStatus.ACTIVE and lease.expires_at < now
             ]
-
             for lease in expired_leases:
                 self.release_lease(lease)
-
             return len(expired_leases)

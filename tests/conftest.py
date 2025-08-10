@@ -19,9 +19,15 @@ def manager(storage: InMemoryStorage) -> ProxyManager:
 
 
 @pytest.fixture
-def test_client_id() -> UUID:
-    """Provide a consistent client ID for tests."""
-    return uuid4()
+def test_client_name() -> str:
+    """Provide a consistent client name for tests."""
+    return "test-client"
+
+
+@pytest.fixture
+def test_pool_name() -> str:
+    """Provide a consistent pool name for tests."""
+    return "test-pool"
 
 
 @pytest.fixture

@@ -1,5 +1,4 @@
 from typing import Optional
-from uuid import UUID
 
 from lighthouse.models import Lease, ProxyFilters
 from lighthouse.storage import IStorage
@@ -20,22 +19,22 @@ class ProxyManager:
 
     def acquire_proxy(
         self,
-        pool_id: UUID,
-        client_id: UUID,
+        pool_name: str,
+        client_name: str,
         duration_seconds: int = 300,
         filters: Optional[ProxyFilters] = None,
     ) -> Optional[Lease]:
         """
-        Acquire a proxy from a given pool for a specific client.
+        Acquire a proxy from a named pool for a specific client.
 
-        Optionally matching given filters.
+        This method provides a user-friendly interface using human-readable names.
 
         Parameters
         ----------
-        pool_id : UUID
-            The ID of the proxy pool.
-        client_id : UUID
-            The ID of the client acquiring the proxy.
+        pool_name : str
+            The name of the proxy pool.
+        client_name : str
+            The name of the client acquiring the proxy.
         duration_seconds : int, optional
             The duration of the lease in seconds, by default 300.
         filters : Optional[ProxyFilters], optional
@@ -44,12 +43,11 @@ class ProxyManager:
         Returns
         -------
         Optional[Lease]
-            The acquired lease, containing the proxy and lease details,
-            or None if no suitable proxy is available.
+            The acquired lease, or None if no suitable proxy is found.
         """
-        proxy = self._storage.find_available_proxy(pool_id, filters)
+        proxy = self._storage.find_available_proxy(pool_name, filters)
         if proxy:
-            lease = self._storage.create_lease(proxy, client_id, duration_seconds)
+            lease = self._storage.create_lease(proxy, client_name, duration_seconds)
             return lease
 
         return None
