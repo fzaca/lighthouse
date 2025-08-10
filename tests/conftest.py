@@ -19,9 +19,9 @@ def manager(storage: InMemoryStorage) -> ProxyManager:
 
 
 @pytest.fixture
-def test_client_name() -> str:
-    """Provide a consistent client name for tests."""
-    return "test-client"
+def test_consumer_name() -> str:
+    """Provide a consistent consumer name for tests."""
+    return "test-entity"
 
 
 @pytest.fixture
