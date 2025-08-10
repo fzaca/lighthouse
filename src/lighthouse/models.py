@@ -133,7 +133,6 @@ class Client(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     name: str
-    api_key_hash: str
 
 
 class HealthCheckResult(BaseModel):
