@@ -33,7 +33,55 @@ pip install lighthouse
 Here is a simple example of how to use `lighthouse` with the default `InMemoryStorage` to acquire and release a proxy.
 
 ```python
-# Example of usage in code
+from lighthouse.models import Proxy, ProxyPool, ProxyStatus, Consumer
+from lighthouse.storage import InMemoryStorage
+from lighthouse.manager import ProxyManager
+
+# 1. Setup the storage and manager
+storage = InMemoryStorage()
+manager = ProxyManager(storage=storage)
+
+# 2. Seed the storage with necessary data for the example
+# In a real application, you would load this from your database.
+
+# The manager uses a "default" consumer if none is specified,
+# so we must add it to the storage for the example to work.
+default_consumer = Consumer(name=manager.DEFAULT_CONSUMER_NAME)
+storage.add_consumer(default_consumer)
+
+# Create a pool and a proxy
+pool = ProxyPool(name="latam-residential")
+storage.add_pool(pool)
+
+proxy = Proxy(
+    host="1.1.1.1",
+    port=8080,
+    protocol="http",
+    pool_id=pool.id,
+    status=ProxyStatus.ACTIVE,
+)
+storage.add_proxy(proxy)
+
+# 3. Acquire a proxy from the pool (without specifying a consumer)
+print(f"Attempting to acquire a proxy from pool '{pool.name}'...")
+lease = manager.acquire_proxy(pool_name=pool.name, duration_seconds=60)
+
+if lease:
+    leased_proxy = storage.get_proxy_by_id(lease.proxy_id)
+    print(f"Success! Leased proxy: {leased_proxy.host}:{leased_proxy.port}")
+    print(f"Lease acquired by consumer ID: {lease.consumer_id}")
+
+    # ... do some work with the proxy ...
+
+    # 4. Release the lease when done
+    print("\nReleasing the lease...")
+    manager.release_proxy(lease)
+    print("Lease released.")
+
+    proxy_after_release = storage.get_proxy_by_id(lease.proxy_id)
+    print(f"Proxy lease count after release: {proxy_after_release.current_leases}")
+else:
+    print("Failed to acquire a proxy. None available.")
 ```
 
 ## The Lighthouse Ecosystem
