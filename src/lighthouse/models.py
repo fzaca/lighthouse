@@ -120,7 +120,7 @@ class Lease(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     proxy_id: UUID
-    client_id: UUID
+    consumer_id: UUID
     status: LeaseStatus = LeaseStatus.ACTIVE
     acquired_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime
@@ -128,8 +128,8 @@ class Lease(BaseModel):
     stats_session: SessionStats = Field(default_factory=SessionStats)
 
 
-class Client(BaseModel):
-    """Represents a client that consumes proxies."""
+class Consumer(BaseModel):
+    """Represents an entity that consumes proxies."""
 
     id: UUID = Field(default_factory=uuid4)
     name: str

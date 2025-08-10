@@ -29,15 +29,15 @@ class IStorage(ABC):
 
     @abstractmethod
     def create_lease(
-        self, proxy: Proxy, client_name: str, duration_seconds: int
+        self, proxy: Proxy, consumer_name: str, duration_seconds: int
     ) -> Lease:
         """
-        Create a new lease for a given proxy and client name.
+        Create a new lease for a given proxy and consumer name.
 
         Args:
         ----
             proxy: The proxy to lease.
-            client_name: The name of the client requesting the lease.
+            consumer_name: The name of the entity requesting the lease.
             duration_seconds: The duration of the lease in seconds.
 
         Returns

@@ -4,12 +4,13 @@ from typing import Dict, Optional
 from uuid import UUID
 
 from lighthouse.models import (
-    Client,
+    Consumer,
     Lease,
     LeaseStatus,
     Proxy,
     ProxyFilters,
     ProxyPool,
+    ProxyStatus,
 )
 from lighthouse.storage.interface import IStorage
 
@@ -32,7 +33,7 @@ class _InMemoryPool:
     def find_available_proxy(self, filters: Optional[ProxyFilters]) -> Optional[Proxy]:
         """Find the first available proxy in this pool that matches filters."""
         for proxy in self.proxies.values():
-            if proxy.status != "active":
+            if proxy.status != ProxyStatus.ACTIVE:
                 continue
             is_available = (
                 proxy.max_concurrency is None
@@ -76,11 +77,11 @@ class InMemoryStorage(IStorage):
         self._lock = threading.RLock()
         self._pools: Dict[UUID, _InMemoryPool] = {}
         self._proxy_pools: Dict[UUID, ProxyPool] = {}
-        self._clients: Dict[UUID, Client] = {}
+        self._consumers: Dict[UUID, Consumer] = {}
         self._leases: Dict[UUID, Lease] = {}
 
         self._pool_name_to_id: Dict[str, UUID] = {}
-        self._client_name_to_id: Dict[str, UUID] = {}
+        self._consumer_name_to_id: Dict[str, UUID] = {}
         self._proxy_id_to_pool_id: Dict[UUID, UUID] = {}
 
     def add_pool(self, pool: ProxyPool):
@@ -96,17 +97,17 @@ class InMemoryStorage(IStorage):
             self._pool_name_to_id[pool_copy.name] = pool_copy.id
             self._pools[pool_copy.id] = _InMemoryPool(name=pool_copy.name)
 
-    def add_client(self, client: Client):
-        """Add a client to the storage for testing.
+    def add_consumer(self, consumer: Consumer):
+        """Add a consumer to the storage for testing.
 
         Args:
         ----
-            client: The Client object to add.
+            consumer: The Consumer object to add.
         """
         with self._lock:
-            client_copy = client.model_copy(deep=True)
-            self._clients[client_copy.id] = client_copy
-            self._client_name_to_id[client_copy.name] = client_copy.id
+            consumer_copy = consumer.model_copy(deep=True)
+            self._consumers[consumer_copy.id] = consumer_copy
+            self._consumer_name_to_id[consumer_copy.name] = consumer_copy.id
 
     def add_proxy(self, proxy: Proxy):
         """Add a proxy to its corresponding pool in the storage.
@@ -165,13 +166,25 @@ class InMemoryStorage(IStorage):
         return None
 
     def create_lease(
-        self, proxy: Proxy, client_name: str, duration_seconds: int
+        self, proxy: Proxy, consumer_name: str, duration_seconds: int
     ) -> Lease:
-        """Create a new lease for a given proxy and client name."""
+        """
+        Create a new lease for a given proxy and consumer name.
+
+        Args:
+        ----
+            proxy: The proxy to lease.
+            consumer_name: The name of the entity requesting the lease.
+            duration_seconds: The duration of the lease in seconds.
+
+        Returns
+        -------
+            The newly created Lease object.
+        """
         with self._lock:
-            client_id = self._client_name_to_id.get(client_name)
-            if not client_id:
-                raise ValueError(f"Client with name '{client_name}' not found.")
+            consumer_id = self._consumer_name_to_id.get(consumer_name)
+            if not consumer_id:
+                raise ValueError(f"Consumer with name '{consumer_name}' not found.")
 
             proxy_in_storage = self.get_proxy_by_id(proxy.id)
             if not proxy_in_storage:
@@ -189,7 +202,7 @@ class InMemoryStorage(IStorage):
 
             lease = Lease(
                 proxy_id=proxy.id,
-                client_id=client_id,
+                consumer_id=consumer_id,
                 expires_at=expires_at,
                 acquired_at=now,
             )
@@ -202,7 +215,13 @@ class InMemoryStorage(IStorage):
             return lease.model_copy(deep=True)
 
     def release_lease(self, lease: Lease) -> None:
-        """Release an existing lease."""
+        """
+        Release an existing lease.
+
+        Args:
+        ----
+            lease: The lease to release.
+        """
         with self._lock:
             lease_in_storage = self._leases.get(lease.id)
             if not lease_in_storage or lease_in_storage.status == LeaseStatus.RELEASED:
@@ -219,7 +238,13 @@ class InMemoryStorage(IStorage):
                 )
 
     def cleanup_expired_leases(self) -> int:
-        """Find and release all expired leases."""
+        """
+        Find and release all expired leases.
+
+        Returns
+        -------
+            The number of leases that were cleaned up.
+        """
         with self._lock:
             now = datetime.now(timezone.utc)
             leases_to_check = list(self._leases.values())

@@ -14,27 +14,30 @@ class ProxyManager:
         The storage backend for proxy data.
     """
 
+    DEFAULT_CONSUMER_NAME = "default"
+
     def __init__(self, storage: IStorage):
         self._storage = storage
 
     def acquire_proxy(
         self,
         pool_name: str,
-        client_name: str,
+        consumer_name: Optional[str] = None,
         duration_seconds: int = 300,
         filters: Optional[ProxyFilters] = None,
     ) -> Optional[Lease]:
         """
-        Acquire a proxy from a named pool for a specific client.
+        Acquire a proxy from a named pool.
 
-        This method provides a user-friendly interface using human-readable names.
+        If no consumer name is provided, the lease will be attributed to a
+        default consumer.
 
         Parameters
         ----------
         pool_name : str
             The name of the proxy pool.
-        client_name : str
-            The name of the client acquiring the proxy.
+        consumer_name : str, optional
+            The name of the consumer acquiring the proxy. Defaults to 'default'.
         duration_seconds : int, optional
             The duration of the lease in seconds, by default 300.
         filters : Optional[ProxyFilters], optional
@@ -45,9 +48,13 @@ class ProxyManager:
         Optional[Lease]
             The acquired lease, or None if no suitable proxy is found.
         """
+        effective_consumer_name = consumer_name or self.DEFAULT_CONSUMER_NAME
+
         proxy = self._storage.find_available_proxy(pool_name, filters)
         if proxy:
-            lease = self._storage.create_lease(proxy, client_name, duration_seconds)
+            lease = self._storage.create_lease(
+                proxy, effective_consumer_name, duration_seconds
+            )
             return lease
 
         return None
