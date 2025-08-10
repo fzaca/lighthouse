@@ -54,7 +54,7 @@ class Proxy(BaseModel):
     protocol: str
     pool_id: UUID
     status: ProxyStatus = ProxyStatus.INACTIVE
-    last_checked_at: datetime = Field(
+    checked_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
     credentials: Optional[ProxyCredentials] = None
