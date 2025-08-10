@@ -45,13 +45,22 @@ class SessionStats(BaseModel):
     request_count: int = Field(default=0, ge=0)
 
 
+class ProxyProtocol(str, Enum):
+    """Enumeration for supported proxy protocols."""
+
+    HTTP = "http"
+    HTTPS = "https"
+    SOCKS4 = "socks4"
+    SOCKS5 = "socks5"
+
+
 class Proxy(BaseModel):
     """Represents a network proxy."""
 
     id: UUID = Field(default_factory=uuid4)
     host: Union[IPvAnyAddress, str]
     port: int = Field(gt=0, le=65535)
-    protocol: str
+    protocol: ProxyProtocol
     pool_id: UUID
     status: ProxyStatus = ProxyStatus.INACTIVE
     checked_at: datetime = Field(
