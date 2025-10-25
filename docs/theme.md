@@ -28,15 +28,16 @@ helpers. Lighthouse currently enables:
 - `admonition`
 - `tables`
 - `toc`
-- `codehilite` (configured with the `material` Pygments style)
+- `codehilite`
 - `pymdownx.details`
 - `pymdownx.highlight`
 - `pymdownx.inlinehilite`
 - `pymdownx.superfences`
 - `pymdownx.tabbed`
 
-Highlighted blocks are styled via `docs/assets/css/codehilite.css`, loaded with
-`extra_css` in `mkdocs.yml`.
+Syntax colors come from the theme’s built-in Pygments palettes (`shadcn-light`
+and `github-dark`), configured through the `pygments_style` setting under the
+`theme` stanza in `mkdocs.yml`.
 
 Additional extensions you can enable:
 

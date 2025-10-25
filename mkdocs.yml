@@ -8,23 +8,23 @@ copyright: "© {year} Lighthouse contributors"
 theme:
   name: shadcn
   language: en
+  pygments_style:
+    light: shadcn-light
+    dark: github-dark
 extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/fzaca/lighthouse
       name: GitHub
-extra_css:
-  - assets/css/codehilite.css
 markdown_extensions:
   - admonition
   - tables
   - toc:
       permalink: true
   - codehilite:
-      guess_lang: false
-      pygments_style: material
   - pymdownx.highlight:
       anchor_linenums: true
+      use_pygments: true
   - pymdownx.inlinehilite
   - pymdownx.superfences
   - pymdownx.details
