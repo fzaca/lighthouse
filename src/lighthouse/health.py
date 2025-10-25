@@ -29,6 +29,7 @@ class HTTPHealthCheckStrategy(HealthCheckStrategy):
     async def check(
         self, proxy: Proxy, options: HealthCheckOptions
     ) -> HealthCheckResult:
+        """Perform a proxy check using HTTP requests routed through the proxy."""
         loop = asyncio.get_running_loop()
         last_error: Optional[str] = None
         status_code: Optional[int] = None
@@ -65,16 +66,17 @@ class HTTPHealthCheckStrategy(HealthCheckStrategy):
                             status_code=status_code,
                         )
 
+                    expected_codes = options.expected_status_codes
                     last_error = (
-                        f"Unexpected status code {status_code}; "
-                        f"expected one of {options.expected_status_codes}"
+                        "Unexpected status code "
+                        f"{status_code}; expected one of {expected_codes}"
                     )
                 except httpx.TimeoutException as exc:
                     latency_ms = int(options.timeout * 1000)
-                    last_error = f"Timeout while reaching {options.target_url}: {exc}"
+                    last_error = f"Timeout while reaching {target_url}: {exc}"
                 except httpx.HTTPError as exc:
                     latency_ms = int(options.timeout * 1000)
-                    last_error = f"HTTP error while reaching {options.target_url}: {exc}"
+                    last_error = f"HTTP error while reaching {target_url}: {exc}"
 
         return HealthCheckResult(
             proxy_id=proxy.id,
@@ -107,7 +109,10 @@ class HealthChecker:
         self._register_default_strategies()
 
     def _register_default_strategies(self) -> None:
-        http_strategy = self._strategies.get(ProxyProtocol.HTTP) or HTTPHealthCheckStrategy()
+        http_strategy = self._strategies.get(ProxyProtocol.HTTP)
+        if http_strategy is None:
+            http_strategy = HTTPHealthCheckStrategy()
+
         self._strategies.setdefault(ProxyProtocol.HTTP, http_strategy)
         self._strategies.setdefault(ProxyProtocol.HTTPS, http_strategy)
         self._strategies.setdefault(ProxyProtocol.SOCKS4, http_strategy)
@@ -117,14 +122,12 @@ class HealthChecker:
         self, protocol: ProxyProtocol, strategy: HealthCheckStrategy
     ) -> None:
         """Register or replace the strategy used for a given protocol."""
-
         self._strategies[protocol] = strategy
 
     def set_protocol_options(
         self, protocol: ProxyProtocol, options: HealthCheckOptions
     ) -> None:
         """Override the default options for a given protocol."""
-
         self._options_by_protocol[protocol] = options
 
     def _resolve_options(self, protocol: ProxyProtocol) -> HealthCheckOptions:
@@ -136,10 +139,11 @@ class HealthChecker:
         options: Optional[HealthCheckOptions] = None,
     ) -> HealthCheckResult:
         """Execute a health check for the provided proxy."""
-
         strategy = self._strategies.get(proxy.protocol)
         if not strategy:
-            raise ValueError(f"No health check strategy registered for {proxy.protocol}")
+            raise ValueError(
+                f"No health check strategy registered for {proxy.protocol}"
+            )
 
         effective_options = options or self._resolve_options(proxy.protocol)
         return await strategy.check(proxy, effective_options)
@@ -148,7 +152,6 @@ class HealthChecker:
         self, proxies: Iterable[Proxy], options: Optional[HealthCheckOptions] = None
     ) -> AsyncGenerator[HealthCheckResult, None]:
         """Run health checks concurrently and yield results as they complete."""
-
         tasks = [self.check_proxy(proxy, options=options) for proxy in proxies]
         for future in asyncio.as_completed(tasks):
             yield await future

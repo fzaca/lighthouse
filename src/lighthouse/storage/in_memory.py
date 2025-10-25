@@ -15,7 +15,6 @@ from lighthouse.models import (
 )
 from lighthouse.storage.interface import IStorage
 
-
 _EARTH_RADIUS_KM = 6371.0
 
 

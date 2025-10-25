@@ -3,7 +3,7 @@ site_description: Core toolkit documentation for the Lighthouse proxy platform.
 site_url: https://fzaca.github.io/lighthouse/
 repo_url: https://github.com/fzaca/lighthouse
 repo_name: fzaca/lighthouse
-copyright: "© {year} Lighthouse contributors"
+copyright: "© 2025 Lighthouse contributors"
 
 theme:
   name: material
