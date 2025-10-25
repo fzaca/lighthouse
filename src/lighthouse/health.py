@@ -34,6 +34,8 @@ class HTTPHealthCheckStrategy(HealthCheckStrategy):
         status_code: Optional[int] = None
         latency_ms = int(options.timeout * 1000)
 
+        target_url = str(options.target_url)
+
         async with httpx.AsyncClient(
             proxy=proxy.url, timeout=options.timeout
         ) as client:
@@ -41,7 +43,7 @@ class HTTPHealthCheckStrategy(HealthCheckStrategy):
                 start_time = loop.time()
                 try:
                     response = await client.get(
-                        options.target_url,
+                        target_url,
                         headers=options.headers,
                         follow_redirects=options.allow_redirects,
                     )

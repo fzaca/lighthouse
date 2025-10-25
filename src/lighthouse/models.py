@@ -95,7 +95,12 @@ class Proxy(BaseModel):
             password = quote_plus(self.credentials.password)
             auth_part = f"{user}:{password}@"
 
-        return f"{self.protocol}://{auth_part}{self.host}:{self.port}"
+        scheme = (
+            self.protocol.value
+            if isinstance(self.protocol, ProxyProtocol)
+            else str(self.protocol)
+        )
+        return f"{scheme}://{auth_part}{self.host}:{self.port}"
 
 
 class ProxyPool(BaseModel):
