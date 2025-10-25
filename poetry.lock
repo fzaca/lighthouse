@@ -102,6 +102,18 @@ files = [
 extras = ["regex"]
 
 [[package]]
+name = "bottle"
+version = "0.13.4"
+description = "Fast and simple WSGI-framework for small web-applications."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "bottle-0.13.4-py2.py3-none-any.whl", hash = "sha256:045684fbd2764eac9cdeb824861d1551d113e8b683d8d26e296898d3dd99a12e"},
+    {file = "bottle-0.13.4.tar.gz", hash = "sha256:787e78327e12b227938de02248333d788cfe45987edca735f8f88e03472c3f47"},
+]
+
+[[package]]
 name = "certifi"
 version = "2025.7.14"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -911,6 +923,23 @@ files = [
     {file = "mkdocs_material_extensions-1.3.1-py3-none-any.whl", hash = "sha256:adff8b62700b25cb77b53358dad940f3ef973dd6db797907c49e3c2ef3ab4e31"},
     {file = "mkdocs_material_extensions-1.3.1.tar.gz", hash = "sha256:10c9511cea88f568257f960358a467d12b970e1f7b2c0e5fb2bb48cab1928443"},
 ]
+
+[[package]]
+name = "mkdocs-shadcn"
+version = "0.5.1"
+description = "Documentation that also shines"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "mkdocs_shadcn-0.5.1-py3-none-any.whl", hash = "sha256:c8e0c01b2c07433f812aca09ab51e220470c9a6e2839648b3164d4378d835448"},
+    {file = "mkdocs_shadcn-0.5.1.tar.gz", hash = "sha256:f11253a10f6dbdb1eeff5a4398532667734a3822238a7e3f284f6cf2553e195a"},
+]
+
+[package.dependencies]
+bottle = ">=0.13.2"
+mkdocs = ">=1.6.1"
+pymdown-extensions = ">=10.14.3"
 
 [[package]]
 name = "mypy"
@@ -1836,4 +1865,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "445a8519c521aaf49efad626fcd27366c61bc15ddd9ff49eba110624e08e5a7e"
+content-hash = "afac131f4c1212b1806bfbc8674c032371862553f5669f5566c97d537420a046"
