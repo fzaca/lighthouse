@@ -1,47 +1,19 @@
 # Lighthouse Toolkit
 
-<div class="hero">
-  <div>
-    <h1>Ship proxy logic with confidence</h1>
-    <p>Lighthouse Core keeps proxy lifecycle rules in one place so your services,
-    workers, and scripts act consistently. Lease, monitor, and recycle proxies
-    with battle-tested business logic.</p>
-    <div class="cta">
-      <a class="primary" href="proxy-manager/">Dive into the Proxy Manager</a>
-      <a class="secondary" href="https://github.com/fzaca/lighthouse" target="_blank" rel="noopener">View on GitHub</a>
-    </div>
-  </div>
-</div>
+Welcome to the documentation hub for the Lighthouse proxy-management toolkit.
+This site focuses on the components you embed inside scripts, workers, or
+services.
 
-<div class="feature-grid">
-  <div class="feature-card">
-    <h3>Proxy lifecycle management</h3>
-    <p>Acquire, renew, and release leases with built-in concurrency rules.</p>
-    <ul>
-      <li>Exclusive, shared, and unlimited lease modes</li>
-      <li>Automatic lease cleanup hooks</li>
-      <li>Transparent instrumentation points</li>
-    </ul>
-  </div>
-  <div class="feature-card">
-    <h3>Composable storage adapters</h3>
-    <p>Implement the `IStorage` interface once and reuse it everywhere.</p>
-    <ul>
-      <li>In-memory adapter for local scripts</li>
-      <li>Drop-in room for Postgres, Redis, or your datastore</li>
-      <li>Shared schema across SDK and services</li>
-    </ul>
-  </div>
-  <div class="feature-card">
-    <h3>Health insights that travel</h3>
-    <p>Consistent HTTP/SOCKS checks your automation and APIs can trust.</p>
-    <ul>
-      <li>Async probing with configurable thresholds</li>
-      <li>Structured results for dashboards or alerts</li>
-      <li>Integrates with leasing flows out of the box</li>
-    </ul>
-  </div>
-</div>
+## What You Get
+
+- **Proxy lifecycle management:** Acquire and release proxies with concurrency
+  limits and lease tracking handled for you.
+- **Flexible storage adapters:** Implement the `IStorage` interface to back the
+  toolkit with any persistence layer (PostgreSQL, Redis, in-memory, etc.).
+- **Health checking helpers:** Run protocol-aware connectivity probes that the
+  SDK and FastAPI service can reuse.
+- **Type-safe models:** Pydantic v2 models define the schema shared across every
+  Lighthouse component.
 
 ## Quickstart
 

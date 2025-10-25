@@ -1,42 +1,86 @@
-# Documentation Theme (Material for MkDocs)
+# Documentation Theme (mkdocs-shadcn)
 
-The Lighthouse docs now use
-[Material for MkDocs](https://squidfunk.github.io/mkdocs-material/) to deliver a
-polished, accessible reading experience out of the box.
-
-## Why Material?
-
-- **Beautiful defaults:** Typography, spacing, and dark/light palettes ship with
-the theme—no Tailwind or custom JavaScript required.
-- **Productivity features:** Instant navigation, search highlighting, code copy
-buttons, and tabs make it easier to explore the toolkit.
-- **Extensible:** The theme exposes granular configuration and works well with
-`pymdown-extensions` for rich content blocks.
+The Lighthouse docs use the
+[`mkdocs-shadcn`](https://github.com/asiffer/mkdocs-shadcn) theme. It applies the
+`shadcn/ui` design system on top of MkDocs so the site feels modern without
+custom CSS.
 
 ## Quick Start
 
 Install the theme alongside MkDocs:
 
 ```bash
-pip install mkdocs mkdocs-material
+pip install mkdocs mkdocs-shadcn
 ```
 
 Then enable it in `mkdocs.yml`:
 
 ```yaml
 theme:
-  name: material
+  name: shadcn
 ```
 
-## Lighthouse Customisation
+## Supported Extensions
 
-- **Palette:** We set indigo + teal brand colours with automatic dark-mode
-  support and a floating mode switch.
-- **Typography:** The site uses Inter for UI text and Fira Code for code blocks.
-- **Hero & feature blocks:** A small `extra.css` file adds the gradient hero and
-  feature grid on the landing page.
-- **Navigation:** Instant navigation, section expansion, and integrated tables
-  of contents help readers jump to relevant sections quickly.
+The theme works with the standard Markdown extensions plus several `pymdownx`
+helpers. Lighthouse currently enables:
 
-Material supports many more enhancements (search suggestions, version pickers,
-icons, analytics). Extend the configuration as the documentation grows.
+- `admonition`
+- `tables`
+- `toc`
+- `codehilite`
+- `pymdownx.details`
+- `pymdownx.highlight`
+- `pymdownx.inlinehilite`
+- `pymdownx.superfences`
+- `pymdownx.tabbed`
+
+Syntax colors come from the theme’s bundled Pygments palette (`github-dark`),
+configured through the `pygments_style` setting in `mkdocs.yml`.
+
+Additional extensions you can enable:
+
+- `pymdownx.blocks.details`
+- `pymdownx.blocks.tab`
+- `pymdownx.progressbar`
+- `pymdownx.arithmatex`
+- built-in `shadcn.echarts`, `shadcn.iconify`, `shadcn.codexec`
+
+## Plugins
+
+- built-in `excalidraw` – edit diagrams in dev mode and render SVG at build
+  time.
+- `mkdocstrings` – auto-generate API docs from docstrings (experimental in the
+  shadcn theme).
+
+These plugins are optional. Enable them in `mkdocs.yml` when you need the
+functionality.
+
+## Developing the Theme
+
+The upstream project exposes its Tailwind CSS source for contributors. To work
+on the theme itself, clone the repository and install both the Python and CSS
+prerequisites:
+
+```bash
+git clone https://github.com/asiffer/mkdocs-shadcn
+cd mkdocs-shadcn
+uv sync --all-extras
+bun install  # or npm/yarn/pnpm
+```
+
+Run the example docs in watch mode while hacking on the theme:
+
+```bash
+cd pages/
+uv run mkdocs serve --watch-theme -w ..
+```
+
+In another terminal, keep the Tailwind watcher running from the project root:
+
+```bash
+bun dev
+```
+
+The Lighthouse repository does not need Tailwind or the dev tooling—only the
+published `mkdocs-shadcn` package is required.

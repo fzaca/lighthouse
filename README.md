@@ -5,7 +5,7 @@
 [![CI Status](https://github.com/fzaca/lighthouse/actions/workflows/test.yml/badge.svg)](https://github.com/fzaca/lighthouse/actions/workflows/test.yml)
 [![License](https://img.shields.io/pypi/l/lighthouse.svg)](https://github.com/fzaca/lighthouse/blob/main/LICENSE)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Docs](https://img.shields.io/badge/docs-material-3f51b5?logo=materialdesignicons&logoColor=white)](https://fzaca.github.io/lighthouse/)
+[![Docs](https://img.shields.io/badge/docs-shadcn-blue?logo=mkdocs&logoColor=white)](https://fzaca.github.io/lighthouse/)
 
 The foundational Python toolkit for building robust proxy management systems.
 

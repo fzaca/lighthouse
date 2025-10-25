@@ -3,44 +3,12 @@ site_description: Core toolkit documentation for the Lighthouse proxy platform.
 site_url: https://fzaca.github.io/lighthouse/
 repo_url: https://github.com/fzaca/lighthouse
 repo_name: fzaca/lighthouse
-copyright: "© 2025 Lighthouse contributors"
+copyright: "© {year} Lighthouse contributors"
 
 theme:
-  name: material
+  name: shadcn
   language: en
-  icon:
-    repo: fontawesome/brands/github
-  font:
-    text: "Inter"
-    code: "Fira Code"
-  features:
-    - navigation.instant
-    - navigation.tracking
-    - navigation.sections
-    - navigation.expand
-    - navigation.indexes
-    - toc.integrate
-    - content.code.annotate
-    - content.code.copy
-    - content.tabs.link
-    - header.autohide
-  palette:
-    - scheme: default
-      primary: indigo
-      accent: cyan
-      toggle:
-        icon: material/weather-night
-        name: Switch to dark mode
-    - scheme: slate
-      primary: indigo
-      accent: cyan
-      toggle:
-        icon: material/weather-sunny
-        name: Switch to light mode
-extra_css:
-  - stylesheets/extra.css
-plugins:
-  - search
+  pygments_style: github-dark
 extra:
   social:
     - icon: fontawesome/brands/github
@@ -48,21 +16,19 @@ extra:
       name: GitHub
 markdown_extensions:
   - admonition
-  - attr_list
-  - md_in_html
   - tables
   - toc:
       permalink: true
-  - pymdownx.details
+  - codehilite:
   - pymdownx.highlight:
       anchor_linenums: true
-      line_spans: __span
-      pygments_lang_class: true
+      use_pygments: true
+      css_class: codehilite
   - pymdownx.inlinehilite
   - pymdownx.superfences
+  - pymdownx.details
   - pymdownx.tabbed:
       alternate_style: true
-  - pymdownx.snippets
 nav:
   - Home: index.md
   - Components:
