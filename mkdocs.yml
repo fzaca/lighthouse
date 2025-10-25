@@ -23,6 +23,7 @@ markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
       use_pygments: true
+      css_class: codehilite
   - pymdownx.inlinehilite
   - pymdownx.superfences
   - pymdownx.details
