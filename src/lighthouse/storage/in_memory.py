@@ -111,8 +111,6 @@ class InMemoryStorage(IStorage):
         """Initialize the in-memory storage."""
         self._lock = threading.RLock()
         self._pools: Dict[UUID, _InMemoryPool] = {}
-        self._proxy_pools: Dict[UUID, ProxyPool] = {}
-        self._consumers: Dict[UUID, Consumer] = {}
         self._leases: Dict[UUID, Lease] = {}
 
         self._pool_name_to_id: Dict[str, UUID] = {}
@@ -128,7 +126,6 @@ class InMemoryStorage(IStorage):
         """
         with self._lock:
             pool_copy = pool.model_copy(deep=True)
-            self._proxy_pools[pool_copy.id] = pool_copy
             self._pool_name_to_id[pool_copy.name] = pool_copy.id
             self._pools[pool_copy.id] = _InMemoryPool(name=pool_copy.name)
 
@@ -141,7 +138,6 @@ class InMemoryStorage(IStorage):
         """
         with self._lock:
             consumer_copy = consumer.model_copy(deep=True)
-            self._consumers[consumer_copy.id] = consumer_copy
             self._consumer_name_to_id[consumer_copy.name] = consumer_copy.id
 
     def add_proxy(self, proxy: Proxy):

@@ -7,14 +7,12 @@ from lighthouse.models import (
     HealthCheckResult,
     Lease,
     LeaseStatus,
-    LifetimeStats,
     Proxy,
     ProxyCredentials,
     ProxyFilters,
     ProxyPool,
     ProxyProtocol,
     ProxyStatus,
-    SessionStats,
 )
 from lighthouse.storage import IStorage, InMemoryStorage
 
@@ -26,7 +24,6 @@ __all__ = [
     "InMemoryStorage",
     "Lease",
     "LeaseStatus",
-    "LifetimeStats",
     "Proxy",
     "ProxyCredentials",
     "ProxyFilters",
@@ -34,5 +31,4 @@ __all__ = [
     "ProxyPool",
     "ProxyProtocol",
     "ProxyStatus",
-    "SessionStats",
 ]

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Annotated, Any, Dict, Optional, Union
+from typing import Annotated, Optional, Union
 from urllib.parse import quote_plus
 from uuid import UUID, uuid4
 
@@ -30,21 +30,6 @@ class ProxyCredentials(BaseModel):
     password: str
 
 
-class LifetimeStats(BaseModel):
-    """Represents the lifetime usage statistics for a proxy."""
-
-    total_bytes_up: int = Field(default=0, ge=0)
-    total_bytes_down: int = Field(default=0, ge=0)
-
-
-class SessionStats(BaseModel):
-    """Represents the usage statistics for a single lease session."""
-
-    bytes_up: int = Field(default=0, ge=0)
-    bytes_down: int = Field(default=0, ge=0)
-    request_count: int = Field(default=0, ge=0)
-
-
 class ProxyProtocol(str, Enum):
     """Enumeration for supported proxy protocols."""
 
@@ -67,8 +52,6 @@ class Proxy(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc)
     )
     credentials: Optional[ProxyCredentials] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    stats_lifetime: LifetimeStats = Field(default_factory=LifetimeStats)
     source: Optional[str] = None
     country: Optional[str] = None
     city: Optional[str] = None
@@ -121,7 +104,6 @@ class ProxyPool(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str
     description: Optional[str] = None
-    config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class Lease(BaseModel):
@@ -134,7 +116,6 @@ class Lease(BaseModel):
     acquired_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime
     released_at: Optional[datetime] = None
-    stats_session: SessionStats = Field(default_factory=SessionStats)
 
 
 class Consumer(BaseModel):
