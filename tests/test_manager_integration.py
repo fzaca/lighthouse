@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -7,6 +7,7 @@ from lighthouse.manager import ProxyManager
 from lighthouse.models import (
     Consumer,
     Lease,
+    LeaseStatus,
     Proxy,
     ProxyFilters,
     ProxyPool,
@@ -489,6 +490,18 @@ def test_filtering_by_multiple_attributes(
     assert lease.proxy_id == proxy_ar_fast.id
 
 
+def test_proxy_filters_require_coordinates_for_radius():
+    """Radius-based filters without coordinates should be invalid."""
+    with pytest.raises(ValueError):
+        ProxyFilters(radius_km=10)
+
+
+def test_proxy_filters_require_coordinate_pairs():
+    """Latitude and longitude must be provided together."""
+    with pytest.raises(ValueError):
+        ProxyFilters(latitude=10)
+
+
 def test_filtering_respects_concurrency_and_status(
     manager: ProxyManager,
     storage: InMemoryStorage,
@@ -543,3 +556,87 @@ def test_filtering_respects_concurrency_and_status(
     # ASSERT: The only truly available proxy should be leased
     assert lease is not None
     assert lease.proxy_id == proxy_ar_available.id
+
+
+def test_filtering_by_geolocation(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+):
+    """Filtering with geographic radius returns the closest matching proxy."""
+    consumer = Consumer(name=test_consumer_name)
+    pool = ProxyPool(name=test_pool_name)
+    storage.add_consumer(consumer)
+    storage.add_pool(pool)
+
+    buenos_aires = Proxy(
+        host="11.11.11.11",
+        port=8001,
+        protocol="http",
+        pool_id=pool.id,
+        status=ProxyStatus.ACTIVE,
+        latitude=-34.6037,
+        longitude=-58.3816,
+    )
+    santiago = Proxy(
+        host="22.22.22.22",
+        port=8002,
+        protocol="http",
+        pool_id=pool.id,
+        status=ProxyStatus.ACTIVE,
+        latitude=-33.4489,
+        longitude=-70.6693,
+    )
+    storage.add_proxy(buenos_aires)
+    storage.add_proxy(santiago)
+
+    filters = ProxyFilters(latitude=-34.6, longitude=-58.38, radius_km=50)
+    lease = manager.acquire_proxy(
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        filters=filters,
+    )
+
+    assert lease is not None
+    assert lease.proxy_id == buenos_aires.id
+
+
+def test_manager_reclaims_expired_leases(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+):
+    """Expired leases are cleaned automatically when acquiring a proxy."""
+    consumer = Consumer(name=test_consumer_name)
+    pool = ProxyPool(name=test_pool_name)
+    storage.add_consumer(consumer)
+    storage.add_pool(pool)
+
+    proxy = Proxy(
+        host="33.33.33.33",
+        port=8003,
+        protocol="http",
+        pool_id=pool.id,
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=1,
+    )
+    storage.add_proxy(proxy)
+
+    first_lease = manager.acquire_proxy(
+        pool_name=test_pool_name, consumer_name=test_consumer_name, duration_seconds=10
+    )
+    assert first_lease is not None
+
+    storage._leases[first_lease.id].expires_at = datetime.now(timezone.utc) - timedelta(
+        seconds=1
+    )
+
+    second_lease = manager.acquire_proxy(
+        pool_name=test_pool_name, consumer_name=test_consumer_name, duration_seconds=10
+    )
+
+    assert second_lease is not None
+    assert second_lease.proxy_id == proxy.id
+    assert storage._leases[first_lease.id].status == LeaseStatus.RELEASED

@@ -50,6 +50,8 @@ class ProxyManager:
         """
         effective_consumer_name = consumer_name or self.DEFAULT_CONSUMER_NAME
 
+        self._storage.cleanup_expired_leases()
+
         proxy = self._storage.find_available_proxy(pool_name, filters)
         if proxy:
             lease = self._storage.create_lease(
@@ -69,3 +71,7 @@ class ProxyManager:
             The lease to be released.
         """
         self._storage.release_lease(lease)
+
+    def cleanup_expired_leases(self) -> int:
+        """Trigger cleanup of expired leases in the storage backend."""
+        return self._storage.cleanup_expired_leases()

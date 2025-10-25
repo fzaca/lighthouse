@@ -4,7 +4,7 @@ from typing import Annotated, Any, Dict, Optional, Union
 from urllib.parse import quote_plus
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, IPvAnyAddress
+from pydantic import BaseModel, Field, IPvAnyAddress, model_validator
 
 
 class ProxyStatus(str, Enum):
@@ -165,10 +165,22 @@ class ProxyFilters(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     radius_km: Annotated[
-        Optional[int],
+        Optional[float],
         Field(
             None,
             gt=0,
             description="Search radius in kilometers for geo-proximity queries."
         )
     ] = None
+
+    @model_validator(mode="after")
+    def _validate_geo_filters(self) -> "ProxyFilters":
+        """Ensure geographic filters are provided with the required context."""
+        lat, lon = self.latitude, self.longitude
+        if (lat is None) != (lon is None):
+            raise ValueError("latitude and longitude must be provided together")
+        if self.radius_km is not None and (lat is None or lon is None):
+            raise ValueError(
+                "latitude and longitude must be provided when radius_km is set"
+            )
+        return self

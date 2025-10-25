@@ -33,9 +33,14 @@ pip install lighthouse
 Here is a simple example of how to use `lighthouse` with the default `InMemoryStorage` to acquire and release a proxy.
 
 ```python
-from lighthouse.models import Proxy, ProxyPool, ProxyStatus, Consumer
-from lighthouse.storage import InMemoryStorage
-from lighthouse.manager import ProxyManager
+from lighthouse import (
+    Consumer,
+    InMemoryStorage,
+    Proxy,
+    ProxyManager,
+    ProxyPool,
+    ProxyStatus,
+)
 
 # 1. Setup the storage and manager
 storage = InMemoryStorage()
@@ -82,6 +87,33 @@ if lease:
     print(f"Proxy lease count after release: {proxy_after_release.current_leases}")
 else:
     print("Failed to acquire a proxy. None available.")
+```
+
+### Filtering and Geospatial Matching
+
+`ProxyFilters` let you target proxies by provider metadata or geographic
+proximity. The storage layer handles the matching logic, including radius-based
+searches using latitude and longitude.
+
+```python
+from lighthouse import ProxyFilters
+
+filters = ProxyFilters(
+    country="AR",
+    source="fast-provider",
+    latitude=-34.6,
+    longitude=-58.38,
+    radius_km=50,
+)
+
+lease = manager.acquire_proxy(
+    pool_name="latam-residential",
+    consumer_name="team-madrid",
+    filters=filters,
+)
+
+if lease:
+    print("Got a proxy close to Buenos Aires!")
 ```
 
 ## The Lighthouse Ecosystem

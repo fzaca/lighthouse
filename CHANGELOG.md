@@ -2,6 +2,8 @@
 
 ### Feat
 
+- Add geospatial proxy filtering and automatic lease cleanup in manager
+- Re-export public toolkit API from package root for easier consumption
 - Implement concurrent proxy leasing
 - Implement acquire_proxy method in ProxyManager
 - Add ProxyManager and initial tests
