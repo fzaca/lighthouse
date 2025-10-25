@@ -168,8 +168,7 @@ Two main flows emerge:
 
 The toolkit's storage adapters only handle proxy-related data (pools, proxies,
 leases, consumers). User accounts, billing, and analytics live in the service or
-in your own integrations. For a deeper explanation, see
-[`docs/architecture.md`](docs/architecture.md).
+in your own integrations.
 
 ## Contributing
 

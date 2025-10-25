@@ -9,9 +9,8 @@ ecosystem (service, SDK, frontend) to compose it.
 
 ## 2. Architectural Context
 
-Always align work with the architecture described in `docs/architecture.md`.
-That document is the source of truth for how end users interact with the
-ecosystem.
+Keep the toolkit focused on proxy lifecycle rules so it remains reusable across
+different host projects (services, SDKs, standalone scripts).
 
 ### 2.1 Toolkit Layers
 
@@ -57,12 +56,9 @@ concepts into the toolkit.
 
 Consult these files before making decisions:
 
-- `docs/architecture.md` for the multi-component overview and interaction flows.
-- `README.md` for publicly visible messaging; keep it aligned with the
-  architecture.
+- `README.md` for publicly visible messaging; keep it aligned with user-facing
+  documentation.
 - `pyproject.toml` for dependency management and tooling configuration.
 - `CONTRIBUTING.md` for workflow expectations.
-
-When the ecosystem evolves, update `docs/architecture.md` first, then mirror the
-changes in README and these directives so every agent shares the same mental
-model.
+- `drafts/architecture-notes.md` for the internal ecosystem overview (context
+  only; do not publish with the library docs).

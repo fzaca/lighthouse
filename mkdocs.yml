@@ -1,0 +1,52 @@
+site_name: Lighthouse Toolkit
+site_description: Core toolkit documentation for the Lighthouse proxy platform.
+site_url: https://fzaca.github.io/lighthouse/
+repo_url: https://github.com/fzaca/lighthouse
+repo_name: fzaca/lighthouse
+copyright: "© {year} Lighthouse contributors"
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.sections
+    - navigation.instant
+    - navigation.top
+    - navigation.tracking
+    - content.code.copy
+    - toc.integrate
+    - search.highlight
+    - search.share
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/fzaca/lighthouse
+      name: GitHub
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+nav:
+  - Home: index.md
+  - Components:
+      - Proxy Manager: proxy-manager.md
+      - Models & Filters: models.md
+      - Storage Adapters: storage.md
+      - Health Checks: health-checks.md

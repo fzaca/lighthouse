@@ -23,6 +23,8 @@ pre-commit = "^3.5"
 mypy = "^1.7"
 commitizen = "^4.8.3"
 ipdb = "^0.13.10"
+mkdocs = "^1.6.0"
+mkdocs-material = "^9.5.0"
 
 [tool.ruff]
 line-length = 88
