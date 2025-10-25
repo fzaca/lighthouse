@@ -25,6 +25,7 @@ def health_checker() -> HealthChecker:
 
 @pytest.fixture
 def http_proxy(test_pool_id: UUID) -> Proxy:
+    """Provide an active HTTP proxy fixture."""
     return Proxy(
         host=ip_address("1.1.1.1"),
         port=8080,
