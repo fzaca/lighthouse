@@ -8,7 +8,10 @@
 
 The foundational Python toolkit for building robust proxy management systems.
 
-`lighthouse` provides the pure, domain-agnostic business logic for managing the entire lifecycle of network proxies. It is the engine that powers the Lighthouse ecosystem, designed to be used as a direct dependency in your Python applications.
+`lighthouse` provides pure, domain-agnostic business logic for managing the
+entire lifecycle of network proxies. The library is designed as a reusable
+dependency for any Python application that needs to acquire, lease, and monitor
+proxies without inheriting opinionated service architecture.
 
 ---
 
@@ -19,7 +22,6 @@ The foundational Python toolkit for building robust proxy management systems.
 *   **Health Checking Toolkit:** A protocol-aware `HealthChecker` with configurable options for HTTP, HTTPS, and SOCKS proxies.
 *   **Modern & Type-Safe:** Built with Python 3.10+, Pydantic v2, and a 100% type-annotated codebase.
 *   **Toolkit, Not a Framework:** Provides focused utilities that can be embedded inside your own scripts, workers, or services without imposing a runtime.
-*   **Ecosystem Ready:** Acts as the shared engine for the Lighthouse service and SDK so every entry point shares the same business rules.
 
 ## Installation
 
@@ -143,32 +145,21 @@ else:
     print(f"Proxy inactive: {health.error_message}")
 ```
 
-## The Lighthouse Ecosystem
+## Embedding the Toolkit
 
-`lighthouse` is the central engine of a larger ecosystem. The toolkit sits at the
-core, and other projects compose it to support different user journeys:
+`lighthouse` is intentionally agnostic about where it runs. Typical usage
+includes:
 
-*   **[lighthouse-sdk](https://github.com/fzaca/lighthouse-sdk):** Powers Python
-    automation and workers. It reuses the toolkit models locally and can also
-    call the service API when shared state is required.
-*   **[lighthouse-service](https://github.com/fzaca/lighthouse-service):** A
-    FastAPI application that exposes REST endpoints for browsers and external
-    systems. The service delegates proxy lifecycle operations to the toolkit.
-*   **[lighthouse-frontend](https://github.com/fzaca/lighthouse-frontend):** A
-    web UI that interacts with the service layer.
+* **Automation scripts and workers** leasing proxies with `ProxyManager` and
+  performing health probes before dispatching workloads.
+* **Custom services** that provide APIs or dashboards on top of the toolkit by
+  implementing the `IStorage` contract for their own databases.
+* **Standalone applications** that rely on the in-memory storage adapter for
+  quick tasks or testing harnesses.
 
-Two main flows emerge:
-
-1. **Automation:** End users run Python scripts or workers that depend on the
-   SDK, which in turn leverages the toolkit directly and, when needed, talks to
-   the FastAPI service for shared state.
-2. **Web Experience:** End users access the web UI, which communicates with the
-   FastAPI service. The service composes the toolkit with production storage and
-   application concerns such as authentication.
-
-The toolkit's storage adapters only handle proxy-related data (pools, proxies,
-leases, consumers). User accounts, billing, and analytics live in the service or
-in your own integrations.
+The in-memory adapter included with the package is great for development. For
+production, implement `IStorage` to connect the toolkit to your own persistence
+layer.
 
 ## Contributing
 

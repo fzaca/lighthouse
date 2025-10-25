@@ -3,44 +3,31 @@ site_description: Core toolkit documentation for the Lighthouse proxy platform.
 site_url: https://fzaca.github.io/lighthouse/
 repo_url: https://github.com/fzaca/lighthouse
 repo_name: fzaca/lighthouse
-copyright: "© 2025 Lighthouse contributors"
+copyright: "© {year} Lighthouse contributors"
 
 theme:
-  name: material
+  name: shadcn
   language: en
-  features:
-    - navigation.sections
-    - navigation.instant
-    - navigation.top
-    - navigation.tracking
-    - content.code.copy
-    - toc.integrate
-    - search.highlight
-    - search.share
-  palette:
-    - scheme: default
-      primary: indigo
-      accent: indigo
-    - scheme: slate
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/weather-night
-        name: Switch to dark mode
 extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/fzaca/lighthouse
       name: GitHub
+extra_css:
+  - assets/css/codehilite.css
 markdown_extensions:
   - admonition
   - tables
   - toc:
       permalink: true
-  - pymdownx.details
-  - pymdownx.highlight
+  - codehilite:
+      guess_lang: false
+      pygments_style: material
+  - pymdownx.highlight:
+      anchor_linenums: true
   - pymdownx.inlinehilite
   - pymdownx.superfences
+  - pymdownx.details
   - pymdownx.tabbed:
       alternate_style: true
 nav:

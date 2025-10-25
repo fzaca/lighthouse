@@ -62,19 +62,6 @@ if lease:
 For more advanced examples and real-host testing, explore the draft script in
 `drafts/run_proxy_health_checks.py`.
 
-## Ecosystem at a Glance
-
-The toolkit is the shared engine used by every entry point:
-
-- **SDK:** Ships the same models for automation scripts and workers while
-  speaking to the FastAPI service when shared state is needed.
-- **Service:** Composes the toolkit with production storage, authentication, and
-  orchestration concerns.
-- **Frontend:** Talks to the service; never to the toolkit directly.
-
-The separation keeps the toolkit stateless and reusable while letting the
-service own multi-tenancy, scheduling, and auditing logic.
-
 ## Where to Go Next
 
 - Understand leasing flows in the [Proxy Manager guide](proxy-manager.md).

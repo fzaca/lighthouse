@@ -1,0 +1,61 @@
+/* Minimal Pygments-like theme tuned for mkdocs-shadcn */
+.codehilite, .highlight {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.codehilite pre, .highlight pre {
+  margin: 0;
+  background: inherit;
+  color: inherit;
+}
+
+.codehilite .hll { background-color: #1e293b; }
+.codehilite .c { color: #94a3b8; font-style: italic; }
+.codehilite .err { color: #f87171; }
+.codehilite .k { color: #c084fc; }
+.codehilite .o { color: #fbbf24; }
+.codehilite .ch, .codehilite .cm, .codehilite .cp, .codehilite .cpf, .codehilite .c1 { color: #94a3b8; font-style: italic; }
+.codehilite .gd { color: #f87171; }
+.codehilite .ge { font-style: italic; }
+.codehilite .gh { color: #38bdf8; }
+.codehilite .gi { color: #34d399; }
+.codehilite .go { color: #94a3b8; }
+.codehilite .gp { color: #a855f7; }
+.codehilite .gr { color: #fb7185; }
+.codehilite .gs { font-weight: bold; }
+.codehilite .gu { color: #38bdf8; }
+.codehilite .gt { color: #fb7185; }
+.codehilite .kc, .codehilite .kd, .codehilite .kn, .codehilite .kp, .codehilite .kr { color: #c084fc; }
+.codehilite .kt, .codehilite .nb { color: #60a5fa; }
+.codehilite .m { color: #fbbf24; }
+.codehilite .s { color: #34d399; }
+.codehilite .na { color: #60a5fa; }
+.codehilite .nb { color: #f472b6; }
+.codehilite .nc { color: #38bdf8; }
+.codehilite .no { color: #f472b6; }
+.codehilite .nd { color: #fbbf24; }
+.codehilite .ni { color: #38bdf8; }
+.codehilite .ne { color: #f87171; }
+.codehilite .nf { color: #38bdf8; }
+.codehilite .nl { color: #38bdf8; }
+.codehilite .nn { color: #a855f7; }
+.codehilite .nt { color: #34d399; }
+.codehilite .nv, .codehilite .vc, .codehilite .vg, .codehilite .vi { color: #e0e7ff; }
+.codehilite .ow { color: #fbbf24; }
+.codehilite .w { color: inherit; }
+.codehilite .sr { color: #34d399; }
+.codehilite .ss { color: #fbbf24; }
+.codehilite .bp { color: #38bdf8; }
+.codehilite .fm { color: #38bdf8; }
+
+/* Inline code */
+:not(pre) > code {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.5rem;
+}
