@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://fzaca.github.io/lighthouse/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+    <url>
+         <loc>https://fzaca.github.io/lighthouse/health-checks/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+    <url>
+         <loc>https://fzaca.github.io/lighthouse/models/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+    <url>
+         <loc>https://fzaca.github.io/lighthouse/proxy-manager/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+    <url>
+         <loc>https://fzaca.github.io/lighthouse/storage/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+    <url>
+         <loc>https://fzaca.github.io/lighthouse/theme/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+</urlset>
