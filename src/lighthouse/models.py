@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Annotated, Optional, Union
+from typing import Annotated, Dict, List, Optional, Union
 from urllib.parse import quote_plus
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, IPvAnyAddress, model_validator
+from pydantic import AnyHttpUrl, BaseModel, Field, IPvAnyAddress, model_validator
 
 
 class ProxyStatus(str, Enum):
@@ -131,6 +131,10 @@ class HealthCheckResult(BaseModel):
     proxy_id: UUID
     status: ProxyStatus
     latency_ms: int
+    protocol: ProxyProtocol
+    attempts: Annotated[int, Field(default=1, ge=1)] = 1
+    status_code: Optional[int] = None
+    checked_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     error_message: Optional[str] = None
 
 
@@ -165,3 +169,18 @@ class ProxyFilters(BaseModel):
                 "latitude and longitude must be provided when radius_km is set"
             )
         return self
+
+
+class HealthCheckOptions(BaseModel):
+    """Configuration for executing a proxy health check."""
+
+    target_url: AnyHttpUrl = Field(
+        default="https://httpbin.org/ip",
+        description="HTTP endpoint used to verify proxy connectivity.",
+    )
+    timeout: float = Field(default=5.0, gt=0, description="Request timeout in seconds.")
+    attempts: Annotated[int, Field(default=1, ge=1, le=5)] = 1
+    expected_status_codes: List[int] = Field(default_factory=lambda: [200])
+    slow_threshold_ms: Annotated[int, Field(default=2000, ge=0)] = 2000
+    allow_redirects: bool = True
+    headers: Dict[str, str] = Field(default_factory=dict)

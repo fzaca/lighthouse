@@ -5,6 +5,7 @@ from lighthouse.manager import ProxyManager
 from lighthouse.models import (
     Consumer,
     HealthCheckResult,
+    HealthCheckOptions,
     Lease,
     LeaseStatus,
     Proxy,
@@ -18,8 +19,9 @@ from lighthouse.storage import IStorage, InMemoryStorage
 
 __all__ = [
     "Consumer",
-    "HealthCheckResult",
     "HealthChecker",
+    "HealthCheckOptions",
+    "HealthCheckResult",
     "IStorage",
     "InMemoryStorage",
     "Lease",

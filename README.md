@@ -16,7 +16,7 @@ The foundational Python toolkit for building robust proxy management systems.
 
 *   **Proxy Leasing System:** A powerful system to "lease" proxies to consumers, with support for exclusive, shared (concurrent), and unlimited usage.
 *   **Pluggable Storage:** A clean interface (`IStorage`) that decouples the core logic from the database, allowing you to "plug in" any storage backend (e.g., in-memory, PostgreSQL, MongoDB).
-*   **Health Checking Toolkit:** A flexible, asynchronous utility (`AsyncHealthChecker`) to test proxy health, latency, and compatibility.
+*   **Health Checking Toolkit:** A protocol-aware `HealthChecker` with configurable options for HTTP, HTTPS, and SOCKS proxies.
 *   **Modern & Type-Safe:** Built with Python 3.10+, Pydantic v2, and a 100% type-annotated codebase.
 *   **Toolkit, Not a Framework:** Provides focused utilities that can be embedded inside your own scripts, workers, or services without imposing a runtime.
 *   **Ecosystem Ready:** Acts as the shared engine for the Lighthouse service and SDK so every entry point shares the same business rules.
@@ -115,6 +115,32 @@ lease = manager.acquire_proxy(
 
 if lease:
     print("Got a proxy close to Buenos Aires!")
+```
+
+### Health Checks Across Protocols
+
+Use `HealthChecker` to verify connectivity through HTTP, HTTPS, or SOCKS proxies.
+Health checks are configurable via `HealthCheckOptions`, letting you define
+target URLs, expected status codes, retry counts, and latency thresholds.
+
+```python
+from lighthouse import HealthCheckOptions, HealthChecker, ProxyStatus
+
+checker = HealthChecker()
+options = HealthCheckOptions(
+    target_url="https://example.com/status/204",
+    expected_status_codes=[204],
+    attempts=2,
+    slow_threshold_ms=1500,
+)
+
+proxy = storage.get_proxy_by_id(lease.proxy_id)
+health = await checker.check_proxy(proxy, options=options)
+
+if health.status in {ProxyStatus.ACTIVE, ProxyStatus.SLOW}:
+    print("Proxy ready for workloads")
+else:
+    print(f"Proxy inactive: {health.error_message}")
 ```
 
 ## The Lighthouse Ecosystem

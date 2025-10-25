@@ -20,6 +20,9 @@ support different usage scenarios without duplicating business rules.
 - **Service (`lighthouse-service`):** A FastAPI application that exposes REST
   endpoints for managing proxies and leases. It composes the toolkit with a
   durable storage backend to provide shared state for browser clients.
+- **Utilities:** Focused helpers shipped with the toolkit, such as the
+  strategy-based health checker described in `docs/health-checks.md`. They
+  encapsulate reusable domain logic without imposing runtime orchestration.
 - **Web Application (`lighthouse-frontend`):** A browser-based UI that talks to
   the FastAPI service.
 
