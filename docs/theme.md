@@ -35,9 +35,8 @@ helpers. Lighthouse currently enables:
 - `pymdownx.superfences`
 - `pymdownx.tabbed`
 
-Syntax colors come from the theme’s built-in Pygments palettes (`shadcn-light`
-and `github-dark`), configured through the `pygments_style` setting under the
-`theme` stanza in `mkdocs.yml`.
+Syntax colors come from the theme’s bundled Pygments palette (`github-dark`),
+configured through the `pygments_style` setting in `mkdocs.yml`.
 
 Additional extensions you can enable:
 

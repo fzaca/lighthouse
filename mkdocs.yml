@@ -8,9 +8,7 @@ copyright: "© {year} Lighthouse contributors"
 theme:
   name: shadcn
   language: en
-  pygments_style:
-    light: shadcn-light
-    dark: github-dark
+  pygments_style: github-dark
 extra:
   social:
     - icon: fontawesome/brands/github
