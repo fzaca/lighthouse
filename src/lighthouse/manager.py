@@ -50,6 +50,9 @@ class ProxyManager:
         """
         effective_consumer_name = consumer_name or self.DEFAULT_CONSUMER_NAME
 
+        if effective_consumer_name == self.DEFAULT_CONSUMER_NAME:
+            self._storage.ensure_consumer(effective_consumer_name)
+
         self._storage.cleanup_expired_leases()
 
         proxy = self._storage.find_available_proxy(pool_name, filters)

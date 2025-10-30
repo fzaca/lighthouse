@@ -139,6 +139,15 @@ class InMemoryStorage(IStorage):
             consumer_copy = consumer.model_copy(deep=True)
             self._consumer_name_to_id[consumer_copy.name] = consumer_copy.id
 
+    def ensure_consumer(self, consumer_name: str) -> UUID:
+        """Ensure a consumer with the given name exists and return its ID."""
+        with self._lock:
+            if consumer_name in self._consumer_name_to_id:
+                return self._consumer_name_to_id[consumer_name]
+            consumer = Consumer(name=consumer_name)
+            self._consumer_name_to_id[consumer_name] = consumer.id
+            return consumer.id
+
     def add_proxy(self, proxy: Proxy):
         """Add a proxy to its corresponding pool in the storage.
 

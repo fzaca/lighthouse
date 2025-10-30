@@ -40,7 +40,6 @@ Here is a simple example of how to use `lighthouse` with the default `InMemorySt
 
 ```python
 from lighthouse import (
-    Consumer,
     InMemoryStorage,
     Proxy,
     ProxyManager,
@@ -55,10 +54,8 @@ manager = ProxyManager(storage=storage)
 # 2. Seed the storage with necessary data for the example
 # In a real application, you would load this from your database.
 
-# The manager uses a "default" consumer if none is specified,
-# so we must add it to the storage for the example to work.
-default_consumer = Consumer(name=manager.DEFAULT_CONSUMER_NAME)
-storage.add_consumer(default_consumer)
+# The manager uses a "default" consumer if none is specified and will
+# auto-register it in the storage when first needed.
 
 # Create a pool and a proxy
 pool = ProxyPool(name="latam-residential")

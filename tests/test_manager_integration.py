@@ -197,9 +197,7 @@ def test_acquire_proxy_with_default_consumer(
 ):
     """Test that a lease can be acquired without specifying a consumer."""
     # SETUP
-    default_consumer = Consumer(name=manager.DEFAULT_CONSUMER_NAME)
     pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(default_consumer)
     storage.add_pool(pool)
     proxy = Proxy(
         host="5.5.5.5",
@@ -215,7 +213,8 @@ def test_acquire_proxy_with_default_consumer(
 
     # ASSERT
     assert lease is not None
-    assert lease.consumer_id == default_consumer.id
+    default_consumer_id = storage.ensure_consumer(manager.DEFAULT_CONSUMER_NAME)
+    assert lease.consumer_id == default_consumer_id
 
 
 # --- Additional test cases for robustness ---

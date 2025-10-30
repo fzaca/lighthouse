@@ -41,6 +41,8 @@ Characteristics:
 - Keeps data structures in Python dictionaries; nothing is persisted to disk.
 - Provides helper methods (`add_pool`, `add_proxy`, `add_consumer`) to seed test
   data. Production adapters can expose similar helpers or rely on migrations.
+- `ProxyManager` automatically calls `ensure_consumer` for the default consumer
+  so first acquisitions can succeed without manual seeding.
 
 ## Implementing `IStorage`
 
@@ -48,6 +50,7 @@ Custom adapters live in your service or SDK codebase. They must implement:
 
 - `find_available_proxy(pool_name, filters)`
 - `create_lease(proxy, consumer_name, duration_seconds)`
+- `ensure_consumer(consumer_name)`
 - `release_lease(lease)`
 - `cleanup_expired_leases()`
 

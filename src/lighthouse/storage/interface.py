@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Optional
+from uuid import UUID
 
 from lighthouse.models import Lease, Proxy, ProxyFilters
 
@@ -44,6 +45,11 @@ class IStorage(ABC):
         -------
             The newly created Lease object.
         """
+        pass
+
+    @abstractmethod
+    def ensure_consumer(self, consumer_name: str) -> UUID:
+        """Ensure a consumer entry exists and return its ID."""
         pass
 
     @abstractmethod
