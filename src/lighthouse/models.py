@@ -100,7 +100,12 @@ class Proxy(BaseModel):
             if isinstance(self.protocol, ProxyProtocol)
             else str(self.protocol)
         )
-        return f"{scheme}://{auth_part}{self.host}:{self.port}"
+
+        host = str(self.host)
+        if ":" in host and not host.startswith("["):
+            host = f"[{host}]"
+
+        return f"{scheme}://{auth_part}{host}:{self.port}"
 
 
 class ProxyPool(BaseModel):
