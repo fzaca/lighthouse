@@ -48,6 +48,9 @@ class ProxyManager:
         Optional[Lease]
             The acquired lease, or None if no suitable proxy is found.
         """
+        if duration_seconds <= 0:
+            raise ValueError("duration_seconds must be greater than zero.")
+
         effective_consumer_name = consumer_name or self.DEFAULT_CONSUMER_NAME
 
         if effective_consumer_name == self.DEFAULT_CONSUMER_NAME:

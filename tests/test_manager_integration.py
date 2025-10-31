@@ -66,6 +66,17 @@ def test_acquire_and_release_flow(
     assert proxy_in_storage_after_release.current_leases == 0
 
 
+def test_acquire_proxy_rejects_non_positive_duration(
+    manager: ProxyManager, test_pool_name: str
+):
+    """Ensure acquire_proxy rejects non-positive durations."""
+    with pytest.raises(ValueError, match="greater than zero"):
+        manager.acquire_proxy(pool_name=test_pool_name, duration_seconds=0)
+
+    with pytest.raises(ValueError, match="greater than zero"):
+        manager.acquire_proxy(pool_name=test_pool_name, duration_seconds=-60)
+
+
 def test_concurrency_limit_is_respected(
     manager: ProxyManager,
     storage: InMemoryStorage,
