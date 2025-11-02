@@ -11,6 +11,7 @@ from lighthouse.models import (
     Proxy,
     ProxyFilters,
     ProxyPool,
+    ProxyProtocol,
     ProxyStatus,
 )
 from lighthouse.storage.in_memory import InMemoryStorage
@@ -226,6 +227,109 @@ def test_acquire_proxy_with_default_consumer(
     assert lease is not None
     default_consumer_id = storage.ensure_consumer(manager.DEFAULT_CONSUMER_NAME)
     assert lease.consumer_id == default_consumer_id
+
+
+def test_acquire_callbacks_are_invoked(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+):
+    """Registered acquire callbacks receive the lease and context."""
+    consumer = Consumer(name=test_consumer_name)
+    pool = ProxyPool(name=test_pool_name)
+    storage.add_consumer(consumer)
+    storage.add_pool(pool)
+    proxy = Proxy(
+        host="10.10.10.10",
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
+        pool_id=pool.id,
+        status=ProxyStatus.ACTIVE,
+        country="AR",
+    )
+    storage.add_proxy(proxy)
+
+    captured = []
+
+    def on_acquire(lease, pool_name, consumer_name, filters):
+        captured.append((lease, pool_name, consumer_name, filters))
+
+    manager.register_acquire_callback(on_acquire)
+
+    lease = manager.acquire_proxy(
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        filters=ProxyFilters(country="AR"),
+    )
+
+    assert lease is not None
+    assert len(captured) == 1
+    captured_lease, captured_pool, captured_consumer, captured_filters = captured[0]
+    assert captured_lease == lease
+    assert captured_pool == test_pool_name
+    assert captured_consumer == test_consumer_name
+    assert captured_filters is not None
+    assert captured_filters.country == "AR"
+
+
+def test_acquire_callback_runs_on_miss(
+    manager: ProxyManager, test_pool_name: str
+):
+    """Acquire callbacks execute even when no proxy is leased."""
+    called = []
+
+    def on_acquire(lease, pool_name, consumer_name, filters):
+        called.append((lease, pool_name, consumer_name, filters))
+
+    manager.register_acquire_callback(on_acquire)
+
+    result = manager.acquire_proxy(pool_name=test_pool_name)
+
+    assert result is None
+    assert len(called) == 1
+    lease, pool_name, consumer_name, filters = called[0]
+    assert lease is None
+    assert pool_name == test_pool_name
+    assert consumer_name == ProxyManager.DEFAULT_CONSUMER_NAME
+    assert filters is None
+
+
+def test_release_callbacks_are_invoked(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+):
+    """Registered release callbacks are executed after release."""
+    consumer = Consumer(name=test_consumer_name)
+    pool = ProxyPool(name=test_pool_name)
+    storage.add_consumer(consumer)
+    storage.add_pool(pool)
+    proxy = Proxy(
+        host="11.11.11.11",
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
+        pool_id=pool.id,
+        status=ProxyStatus.ACTIVE,
+    )
+    storage.add_proxy(proxy)
+
+    captured = []
+
+    def on_release(lease):
+        captured.append(lease)
+
+    manager.register_release_callback(on_release)
+
+    lease = manager.acquire_proxy(
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+    )
+    assert lease is not None
+    manager.release_proxy(lease)
+
+    assert captured == [lease]
 
 
 def test_with_lease_context_manager_releases_proxy(

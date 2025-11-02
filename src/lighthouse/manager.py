@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Iterator, Optional
+from typing import Callable, Iterator, List, Optional
 
 from lighthouse.models import Lease, ProxyFilters
 from lighthouse.storage import IStorage
@@ -19,6 +19,10 @@ class ProxyManager:
 
     def __init__(self, storage: IStorage):
         self._storage = storage
+        self._acquire_callbacks: List[
+            Callable[[Optional[Lease], str, str, Optional[ProxyFilters]], None]
+        ] = []
+        self._release_callbacks: List[Callable[[Lease], None]] = []
 
     def acquire_proxy(
         self,
@@ -60,13 +64,18 @@ class ProxyManager:
         self._storage.cleanup_expired_leases()
 
         proxy = self._storage.find_available_proxy(pool_name, filters)
+        lease: Optional[Lease] = None
         if proxy:
             lease = self._storage.create_lease(
                 proxy, effective_consumer_name, duration_seconds
             )
-            return lease
-
-        return None
+        self._notify_acquire(
+            lease=lease,
+            pool_name=pool_name,
+            consumer_name=effective_consumer_name,
+            filters=filters,
+        )
+        return lease
 
     def release_proxy(self, lease: Lease) -> None:
         """
@@ -78,6 +87,7 @@ class ProxyManager:
             The lease to be released.
         """
         self._storage.release_lease(lease)
+        self._notify_release(lease)
 
     def cleanup_expired_leases(self) -> int:
         """Trigger cleanup of expired leases in the storage backend."""
@@ -110,3 +120,30 @@ class ProxyManager:
         finally:
             if lease is not None:
                 self.release_proxy(lease)
+
+    def register_acquire_callback(
+        self,
+        callback: Callable[[Optional[Lease], str, str, Optional[ProxyFilters]], None],
+    ) -> None:
+        """Register a callback invoked after attempting to acquire a proxy."""
+        self._acquire_callbacks.append(callback)
+
+    def register_release_callback(
+        self, callback: Callable[[Lease], None]
+    ) -> None:
+        """Register a callback invoked after releasing a proxy."""
+        self._release_callbacks.append(callback)
+
+    def _notify_acquire(
+        self,
+        lease: Optional[Lease],
+        pool_name: str,
+        consumer_name: str,
+        filters: Optional[ProxyFilters],
+    ) -> None:
+        for callback in self._acquire_callbacks:
+            callback(lease, pool_name, consumer_name, filters)
+
+    def _notify_release(self, lease: Lease) -> None:
+        for callback in self._release_callbacks:
+            callback(lease)
