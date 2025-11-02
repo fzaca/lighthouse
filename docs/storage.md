@@ -10,28 +10,26 @@ The bundled `InMemoryStorage` is ideal for tests and exploratory scripts.
 
 ```python
 from lighthouse import (
-    Consumer,
     InMemoryStorage,
-    Proxy,
     ProxyPool,
+    ProxyProtocol,
     ProxyStatus,
+    bootstrap_consumer,
+    bootstrap_pool,
+    bootstrap_proxy,
 )
 
 storage = InMemoryStorage()
 
-pool = ProxyPool(name="latam-residential")
-storage.add_pool(pool)
-
-storage.add_consumer(Consumer(name="default"))
-
-storage.add_proxy(
-    Proxy(
-        host="186.33.123.10",
-        port=8080,
-        protocol="http",
-        pool_id=pool.id,
-        status=ProxyStatus.ACTIVE,
-    )
+bootstrap_consumer(storage, name="default")
+pool = bootstrap_pool(storage, name="latam-residential")
+bootstrap_proxy(
+    storage,
+    pool=pool,
+    host="186.33.123.10",
+    port=8080,
+    protocol=ProxyProtocol.HTTP,
+    status=ProxyStatus.ACTIVE,
 )
 ```
 
@@ -42,7 +40,9 @@ Characteristics:
 - Provides helper methods (`add_pool`, `add_proxy`, `add_consumer`) to seed test
   data. Production adapters can expose similar helpers or rely on migrations.
 - `ProxyManager` automatically calls `ensure_consumer` for the default consumer
-  so first acquisitions can succeed without manual seeding.
+  so first acquisitions can succeed without manual seeding. For custom
+  consumers, the `bootstrap_consumer`, `bootstrap_pool`, and `bootstrap_proxy`
+  helpers keep examples concise.
 
 ## Implementing `IStorage`
 

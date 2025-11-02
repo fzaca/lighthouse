@@ -26,31 +26,26 @@ pip install lighthouse
 
 ```python
 from lighthouse import (
-    Consumer,
     InMemoryStorage,
-    Proxy,
     ProxyManager,
-    ProxyPool,
+    ProxyProtocol,
     ProxyStatus,
+    bootstrap_pool,
+    bootstrap_proxy,
 )
 
 storage = InMemoryStorage()
 manager = ProxyManager(storage=storage)
 
-# Seed a default consumer and pool
-consumer = Consumer(name=manager.DEFAULT_CONSUMER_NAME)
-storage.add_consumer(consumer)
-pool = ProxyPool(name="latam-residential")
-storage.add_pool(pool)
-
-storage.add_proxy(
-    Proxy(
-        host="1.1.1.1",
-        port=8080,
-        protocol="http",
-        pool_id=pool.id,
-        status=ProxyStatus.ACTIVE,
-    )
+# Bootstrap a pool and proxy; the manager auto-creates the default consumer.
+pool = bootstrap_pool(storage, name="latam-residential")
+bootstrap_proxy(
+    storage,
+    pool=pool,
+    host="1.1.1.1",
+    port=8080,
+    protocol=ProxyProtocol.HTTP,
+    status=ProxyStatus.ACTIVE,
 )
 
 lease = manager.acquire_proxy(pool_name=pool.name)
@@ -58,6 +53,9 @@ if lease:
     print("Proxy leased!", lease.proxy_id)
     manager.release_proxy(lease)
 ```
+
+The manager falls back to a `default` consumer automatically, so you only need
+to seed explicit consumers when you want per-tenant tracking.
 
 For more advanced examples and real-host testing, explore the draft script in
 `drafts/run_proxy_health_checks.py`.
