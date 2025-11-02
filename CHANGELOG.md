@@ -1,3 +1,19 @@
+## Unreleased
+
+### Feat
+
+- **utils**: add storage bootstrap helpers
+- **manager**: add acquire and release callbacks
+- **health,storage**: add health check orchestrator
+- **manager,storage**: add lease context helper and allow zero ASN
+- **manager**: validate lease duration input
+- **manager**: auto-register default   consumer
+
+### Fix
+
+- **storage**: allow zero ASN filter
+- **models**: bracket ipv6 hosts in proxy url
+
 ## 0.2.0 (2025-10-25)
 
 ### Feat
