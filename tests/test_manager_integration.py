@@ -552,6 +552,44 @@ def test_filtering_by_country_returns_correct_proxy(
     assert lease.proxy_id == proxy_ar.id
 
 
+def test_filtering_by_asn_zero_returns_proxy(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+):
+    """Ensure filters with ASN zero match proxies."""
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxy_zero = bootstrap_proxy(
+        storage,
+        pool=pool,
+        host="3.3.3.3",
+        port=9000,
+        protocol=ProxyProtocol.HTTP,
+        status=ProxyStatus.ACTIVE,
+        asn=0,
+    )
+    bootstrap_proxy(
+        storage,
+        pool=pool,
+        host="4.4.4.4",
+        port=9001,
+        protocol=ProxyProtocol.HTTP,
+        status=ProxyStatus.ACTIVE,
+        asn=64512,
+    )
+
+    lease = manager.acquire_proxy(
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        filters=ProxyFilters(asn=0),
+    )
+
+    assert lease is not None
+    assert lease.proxy_id == proxy_zero.id
+
+
 def test_filtering_returns_none_if_no_match(
     manager: ProxyManager,
     storage: InMemoryStorage,
@@ -732,6 +770,71 @@ def test_filtering_by_geolocation(
 
     assert lease is not None
     assert lease.proxy_id == buenos_aires.id
+
+
+def test_filtering_by_radius_extremes(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+):
+    """Radius near zero requires exact matches; large radius reaches distant proxies."""
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+
+    exact_proxy = bootstrap_proxy(
+        storage,
+        pool=pool,
+        host="10.10.10.10",
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
+        status=ProxyStatus.ACTIVE,
+        latitude=40.7128,
+        longitude=-74.0060,
+    )
+    distant_proxy = bootstrap_proxy(
+        storage,
+        pool=pool,
+        host="20.20.20.20",
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
+        status=ProxyStatus.ACTIVE,
+        latitude=51.5074,
+        longitude=-0.1278,
+    )
+
+    # Near-zero radius should only match proxies at the exact coordinates.
+    zero_radius_filters = ProxyFilters(
+        latitude=40.7128,
+        longitude=-74.0060,
+        radius_km=0.0001,
+    )
+    first_lease = manager.acquire_proxy(
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        filters=zero_radius_filters,
+    )
+    assert first_lease is not None
+    assert first_lease.proxy_id == exact_proxy.id
+    manager.release_proxy(first_lease)
+
+    # Mark the exact proxy as busy to force selection of the distant proxy.
+    storage._pools[pool.id].proxies[exact_proxy.id].current_leases = 1
+    storage._pools[pool.id].proxies[exact_proxy.id].max_concurrency = 1
+
+    large_radius_filters = ProxyFilters(
+        latitude=40.7128,
+        longitude=-74.0060,
+        radius_km=20000,
+    )
+    second_lease = manager.acquire_proxy(
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        filters=large_radius_filters,
+    )
+
+    assert second_lease is not None
+    assert second_lease.proxy_id == distant_proxy.id
 
 
 def test_manager_reclaims_expired_leases(
