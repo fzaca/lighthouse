@@ -1,4 +1,5 @@
-from typing import Optional
+from contextlib import contextmanager
+from typing import Iterator, Optional
 
 from lighthouse.models import Lease, ProxyFilters
 from lighthouse.storage import IStorage
@@ -81,3 +82,31 @@ class ProxyManager:
     def cleanup_expired_leases(self) -> int:
         """Trigger cleanup of expired leases in the storage backend."""
         return self._storage.cleanup_expired_leases()
+
+    @contextmanager
+    def with_lease(
+        self,
+        pool_name: str,
+        consumer_name: Optional[str] = None,
+        duration_seconds: int = 300,
+        filters: Optional[ProxyFilters] = None,
+    ) -> Iterator[Optional[Lease]]:
+        """
+        Context manager that acquires a lease and releases it automatically.
+
+        Yields
+        ------
+        Optional[Lease]
+            The acquired lease, or None if acquisition failed.
+        """
+        lease = self.acquire_proxy(
+            pool_name=pool_name,
+            consumer_name=consumer_name,
+            duration_seconds=duration_seconds,
+            filters=filters,
+        )
+        try:
+            yield lease
+        finally:
+            if lease is not None:
+                self.release_proxy(lease)

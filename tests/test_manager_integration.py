@@ -228,6 +228,51 @@ def test_acquire_proxy_with_default_consumer(
     assert lease.consumer_id == default_consumer_id
 
 
+def test_with_lease_context_manager_releases_proxy(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+):
+    """Ensure the with_lease helper releases proxies automatically."""
+    consumer = Consumer(name=test_consumer_name)
+    pool = ProxyPool(name=test_pool_name)
+    storage.add_consumer(consumer)
+    storage.add_pool(pool)
+    proxy = Proxy(
+        host="6.6.6.6",
+        port=8080,
+        protocol="http",
+        pool_id=pool.id,
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=1,
+    )
+    storage.add_proxy(proxy)
+
+    with manager.with_lease(
+        pool_name=test_pool_name, consumer_name=test_consumer_name
+    ) as lease:
+        assert lease is not None
+        proxy_in_storage = storage.get_proxy_by_id(proxy.id)
+        assert proxy_in_storage is not None
+        assert proxy_in_storage.current_leases == 1
+
+    proxy_after_context = storage.get_proxy_by_id(proxy.id)
+    assert proxy_after_context is not None
+    assert proxy_after_context.current_leases == 0
+
+    with pytest.raises(RuntimeError):
+        with manager.with_lease(
+            pool_name=test_pool_name, consumer_name=test_consumer_name
+        ) as lease:
+            assert lease is not None
+            raise RuntimeError("forced error")
+
+    proxy_after_exception = storage.get_proxy_by_id(proxy.id)
+    assert proxy_after_exception is not None
+    assert proxy_after_exception.current_leases == 0
+
+
 # --- Additional test cases for robustness ---
 
 
