@@ -6,6 +6,7 @@ from uuid import UUID
 
 from lighthouse.models import (
     Consumer,
+    HealthCheckResult,
     Lease,
     LeaseStatus,
     Proxy,
@@ -294,3 +295,35 @@ class InMemoryStorage(IStorage):
             for lease in expired_leases:
                 self.release_lease(lease)
             return len(expired_leases)
+
+    def apply_health_check_result(
+        self, result: HealthCheckResult
+    ) -> Optional[Proxy]:
+        """
+        Update proxy status and checked_at based on a health check result.
+
+        Args:
+        ----
+            result: Outcome of the health check to persist.
+
+        Returns
+        -------
+            A copy of the updated Proxy, or None if it could not be located.
+        """
+        with self._lock:
+            pool_id = self._proxy_id_to_pool_id.get(result.proxy_id)
+            if pool_id is None:
+                return None
+
+            pool = self._pools.get(pool_id)
+            if pool is None:
+                return None
+
+            proxy = pool.proxies.get(result.proxy_id)
+            if proxy is None:
+                return None
+
+            proxy.status = result.status
+            proxy.checked_at = result.checked_at
+
+            return proxy.model_copy(deep=True)

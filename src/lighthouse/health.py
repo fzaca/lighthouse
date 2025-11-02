@@ -11,6 +11,7 @@ from lighthouse.models import (
     ProxyProtocol,
     ProxyStatus,
 )
+from lighthouse.storage import IStorage
 
 
 class HealthCheckStrategy(ABC):
@@ -155,3 +156,55 @@ class HealthChecker:
         tasks = [self.check_proxy(proxy, options=options) for proxy in proxies]
         for future in asyncio.as_completed(tasks):
             yield await future
+
+
+class HealthCheckOrchestrator:
+    """Coordinate health check execution and persistence of results."""
+
+    def __init__(
+        self,
+        storage: IStorage,
+        checker: Optional[HealthChecker] = None,
+    ) -> None:
+        self._storage = storage
+        self._checker = checker or HealthChecker()
+
+    @property
+    def checker(self) -> HealthChecker:
+        """Expose the underlying health checker for advanced scenarios."""
+        return self._checker
+
+    def apply_result(
+        self, result: HealthCheckResult
+    ) -> Optional[Proxy]:
+        """
+        Persist a health check result using the configured storage backend.
+
+        Returns
+        -------
+        Optional[Proxy]
+            A copy of the updated proxy, or None if it could not be found.
+        """
+        return self._storage.apply_health_check_result(result)
+
+    async def check_proxy(
+        self,
+        proxy: Proxy,
+        options: Optional[HealthCheckOptions] = None,
+    ) -> HealthCheckResult:
+        """Run a health check for a single proxy and persist the outcome."""
+        result = await self._checker.check_proxy(proxy, options=options)
+        self.apply_result(result)
+        return result
+
+    async def stream_health_checks(
+        self,
+        proxies: Iterable[Proxy],
+        options: Optional[HealthCheckOptions] = None,
+    ) -> AsyncGenerator[HealthCheckResult, None]:
+        """Run health checks for multiple proxies and persist each outcome."""
+        async for result in self._checker.stream_health_checks(
+            proxies, options=options
+        ):
+            self.apply_result(result)
+            yield result

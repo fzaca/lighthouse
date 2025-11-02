@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 from ipaddress import ip_address
 from typing import List
 from uuid import UUID
@@ -7,14 +8,20 @@ import httpx
 import pytest
 from pytest_mock import MockerFixture
 
-from lighthouse.health import HealthChecker, HTTPHealthCheckStrategy
+from lighthouse.health import (
+    HealthChecker,
+    HealthCheckOrchestrator,
+    HTTPHealthCheckStrategy,
+)
 from lighthouse.models import (
     HealthCheckOptions,
     HealthCheckResult,
     Proxy,
+    ProxyPool,
     ProxyProtocol,
     ProxyStatus,
 )
+from lighthouse.storage import InMemoryStorage
 
 
 @pytest.fixture
@@ -195,3 +202,115 @@ async def test_custom_strategy_registration(
     result = await health_checker.check_proxy(http_proxy)
 
     assert result.status == ProxyStatus.BANNED
+
+
+class _FakeChecker:
+    """Test-only checker that returns pre-computed results."""
+
+    def __init__(self, results_by_proxy_id):
+        self._results_by_proxy_id = results_by_proxy_id
+
+    async def check_proxy(self, proxy: Proxy, *_args, **_kwargs) -> HealthCheckResult:
+        return self._results_by_proxy_id[proxy.id]
+
+    async def stream_health_checks(
+        self, proxies, *_args, **_kwargs
+    ):
+        for proxy in proxies:
+            yield self._results_by_proxy_id[proxy.id]
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_check_updates_storage(
+    http_proxy: Proxy,
+    test_pool_id: UUID,
+):
+    """Orchestrator persists the status/checked_at fields after a single check."""
+    storage = InMemoryStorage()
+    pool = ProxyPool(id=test_pool_id, name="pool")
+    storage.add_pool(pool)
+    storage.add_proxy(http_proxy)
+
+    checked_at = datetime.now(timezone.utc)
+    result = HealthCheckResult(
+        proxy_id=http_proxy.id,
+        status=ProxyStatus.SLOW,
+        latency_ms=1500,
+        protocol=http_proxy.protocol,
+        checked_at=checked_at,
+    )
+    orchestrator = HealthCheckOrchestrator(
+        storage=storage,
+        checker=_FakeChecker({http_proxy.id: result}),
+    )
+
+    returned = await orchestrator.check_proxy(http_proxy)
+
+    assert returned == result
+    stored_proxy = storage.get_proxy_by_id(http_proxy.id)
+    assert stored_proxy is not None
+    assert stored_proxy.status == ProxyStatus.SLOW
+    assert stored_proxy.checked_at == checked_at
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_stream_updates_each_proxy(
+    test_pool_id: UUID,
+):
+    """Streaming via orchestrator persists results for every proxy."""
+    storage = InMemoryStorage()
+    pool = ProxyPool(id=test_pool_id, name="pool")
+    storage.add_pool(pool)
+
+    proxy_a = Proxy(
+        host=ip_address("8.8.8.8"),
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
+        pool_id=pool.id,
+        status=ProxyStatus.INACTIVE,
+    )
+    proxy_b = Proxy(
+        host=ip_address("9.9.9.9"),
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
+        pool_id=pool.id,
+        status=ProxyStatus.INACTIVE,
+    )
+    storage.add_proxy(proxy_a)
+    storage.add_proxy(proxy_b)
+
+    now = datetime.now(timezone.utc)
+    results = {
+        proxy_a.id: HealthCheckResult(
+            proxy_id=proxy_a.id,
+            status=ProxyStatus.ACTIVE,
+            latency_ms=120,
+            protocol=proxy_a.protocol,
+            checked_at=now,
+        ),
+        proxy_b.id: HealthCheckResult(
+            proxy_id=proxy_b.id,
+            status=ProxyStatus.BANNED,
+            latency_ms=250,
+            protocol=proxy_b.protocol,
+            checked_at=now,
+        ),
+    }
+
+    orchestrator = HealthCheckOrchestrator(
+        storage=storage,
+        checker=_FakeChecker(results),
+    )
+
+    collected = []
+    async for result in orchestrator.stream_health_checks([proxy_a, proxy_b]):
+        collected.append(result)
+
+    assert collected == [results[proxy_a.id], results[proxy_b.id]]
+
+    stored_a = storage.get_proxy_by_id(proxy_a.id)
+    stored_b = storage.get_proxy_by_id(proxy_b.id)
+    assert stored_a is not None and stored_a.status == ProxyStatus.ACTIVE
+    assert stored_b is not None and stored_b.status == ProxyStatus.BANNED
+    assert stored_a.checked_at == now
+    assert stored_b.checked_at == now

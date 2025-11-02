@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from uuid import UUID
 
-from lighthouse.models import Lease, Proxy, ProxyFilters
+from lighthouse.models import HealthCheckResult, Lease, Proxy, ProxyFilters
 
 
 class IStorage(ABC):
@@ -71,5 +71,22 @@ class IStorage(ABC):
         Returns
         -------
             The number of leases that were cleaned up.
+        """
+        pass
+
+    @abstractmethod
+    def apply_health_check_result(
+        self, result: HealthCheckResult
+    ) -> Optional[Proxy]:
+        """
+        Persist the outcome of a health check for a proxy.
+
+        Args:
+        ----
+            result: Result data produced by a health check execution.
+
+        Returns
+        -------
+            A copy of the updated proxy, or None if the proxy was not found.
         """
         pass
