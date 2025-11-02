@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from lighthouse.models import (
+from pharox.models import (
     Proxy,
     ProxyCredentials,
     ProxyProtocol,

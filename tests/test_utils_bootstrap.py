@@ -4,8 +4,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from lighthouse.storage.in_memory import InMemoryStorage
-from lighthouse.utils.bootstrap import (
+from pharox.storage.in_memory import InMemoryStorage
+from pharox.utils.bootstrap import (
     bootstrap_consumer,
     bootstrap_pool,
     bootstrap_proxy,

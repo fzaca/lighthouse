@@ -8,12 +8,12 @@ import httpx
 import pytest
 from pytest_mock import MockerFixture
 
-from lighthouse.health import (
+from pharox.health import (
     HealthChecker,
     HealthCheckOrchestrator,
     HTTPHealthCheckStrategy,
 )
-from lighthouse.models import (
+from pharox.models import (
     HealthCheckOptions,
     HealthCheckResult,
     Proxy,
@@ -21,7 +21,7 @@ from lighthouse.models import (
     ProxyProtocol,
     ProxyStatus,
 )
-from lighthouse.storage import InMemoryStorage
+from pharox.storage import InMemoryStorage
 
 
 @pytest.fixture
@@ -93,7 +93,7 @@ async def test_check_proxy_slow(
     mocker.patch("httpx.AsyncClient", return_value=mock_cm)
     fake_loop = mocker.Mock()
     fake_loop.time.side_effect = [0.0, 0.01]
-    mocker.patch("lighthouse.health.asyncio.get_running_loop", return_value=fake_loop)
+    mocker.patch("pharox.health.asyncio.get_running_loop", return_value=fake_loop)
 
     # Any latency will exceed this threshold since it's zero
     options = HealthCheckOptions(slow_threshold_ms=0)

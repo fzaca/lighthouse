@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from uuid import UUID
 
-from lighthouse.models import HealthCheckResult, Lease, Proxy, ProxyFilters
+from ..models import HealthCheckResult, Lease, Proxy, ProxyFilters
 
 
 class IStorage(ABC):

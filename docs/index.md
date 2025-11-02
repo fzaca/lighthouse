@@ -1,6 +1,6 @@
-# Lighthouse Toolkit
+# Pharox Toolkit
 
-Welcome to the documentation hub for the Lighthouse proxy-management toolkit.
+Welcome to the documentation hub for the Pharox proxy-management toolkit.
 This site focuses on the components you embed inside scripts, workers, or
 services.
 
@@ -13,7 +13,7 @@ services.
 - **Health checking helpers:** Run protocol-aware connectivity probes that the
   SDK and FastAPI service can reuse.
 - **Type-safe models:** Pydantic v2 models define the schema shared across every
-  Lighthouse component.
+  Pharox component.
 
 ## Quickstart
 
@@ -21,11 +21,11 @@ Install the package from PyPI and wire the in-memory storage to experiment
 locally:
 
 ```bash
-pip install lighthouse
+pip install pharox
 ```
 
 ```python
-from lighthouse import (
+from pharox import (
     InMemoryStorage,
     ProxyManager,
     ProxyProtocol,
@@ -67,4 +67,4 @@ For more advanced examples and real-host testing, explore the draft script in
 - Explore the configurable [Health Checks](health-checks.md).
 - Learn how to plug your database in [Storage Adapters](storage.md).
 - Visit the GitHub repository for issue tracking and release notes:
-  <https://github.com/fzaca/lighthouse>.
+  <https://github.com/fzaca/pharox>.

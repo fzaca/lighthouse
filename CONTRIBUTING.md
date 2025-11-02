@@ -1,6 +1,6 @@
-# Contributing to Lighthouse
+# Contributing to Pharox
 
-First off, thank you for considering contributing to Lighthouse! We welcome any contributions, from fixing a typo to implementing a new feature.
+First off, thank you for considering contributing to Pharox! We welcome any contributions, from fixing a typo to implementing a new feature.
 
 This document provides a guide for making contributions to the project.
 
@@ -27,12 +27,12 @@ To ensure a consistent development experience, we use [Poetry](https://python-po
 **Setup Steps:**
 
 1.  **Fork the repository:**
-    Click the "Fork" button on the top right of the [GitHub repository page](https://github.com/fzaca/lighthouse).
+    Click the "Fork" button on the top right of the [GitHub repository page](https://github.com/fzaca/pharox).
 
 2.  **Clone your fork:**
     ```bash
-    git clone https://github.com/fzaca/lighthouse.git
-    cd lighthouse
+    git clone https://github.com/fzaca/pharox.git
+    cd pharox
     ```
 
 3.  **Install dependencies and activate the environment:**
@@ -70,7 +70,7 @@ You are now ready to start developing!
     ```
 
 2.  **Write your code:**
-    All the library's source code is located in the `src/lighthouse` directory.
+    All the library's source code is located in the `src/pharox` directory.
 
 3.  **Write or update tests:**
     Tests are crucial! Make sure to add or update tests for any changes you make. Tests reside in the `tests/` directory.

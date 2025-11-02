@@ -1,20 +1,20 @@
-# Lighthouse Core
+# Pharox Core
 
-[![Python Versions](https://img.shields.io/pypi/pyversions/lighthouse.svg)](https://pypi.org/project/lighthouse/)
-[![PyPI Version](https://img.shields.io/pypi/v/lighthouse.svg)](https://pypi.org/project/lighthouse/)
-[![CI Status](https://github.com/fzaca/lighthouse/actions/workflows/test.yml/badge.svg)](https://github.com/fzaca/lighthouse/actions/workflows/test.yml)
-[![License](https://img.shields.io/pypi/l/lighthouse.svg)](https://github.com/fzaca/lighthouse/blob/main/LICENSE)
+[![Python Versions](https://img.shields.io/pypi/pyversions/pharox.svg)](https://pypi.org/project/pharox/)
+[![PyPI Version](https://img.shields.io/pypi/v/pharox.svg)](https://pypi.org/project/pharox/)
+[![CI Status](https://github.com/fzaca/pharox/actions/workflows/test.yml/badge.svg)](https://github.com/fzaca/pharox/actions/workflows/test.yml)
+[![License](https://img.shields.io/pypi/l/pharox.svg)](https://github.com/fzaca/pharox/blob/main/LICENSE)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Docs](https://img.shields.io/badge/docs-shadcn-blue?logo=mkdocs&logoColor=white)](https://fzaca.github.io/lighthouse/)
+[![Docs](https://img.shields.io/badge/docs-shadcn-blue?logo=mkdocs&logoColor=white)](https://fzaca.github.io/pharox/)
 
 The foundational Python toolkit for building robust proxy management systems.
 
-`lighthouse` provides pure, domain-agnostic business logic for managing the
+`pharox` provides pure, domain-agnostic business logic for managing the
 entire lifecycle of network proxies. The library is designed as a reusable
 dependency for any Python application that needs to acquire, lease, and monitor
 proxies without inheriting opinionated service architecture.
 
-- 📚 Documentation: <https://fzaca.github.io/lighthouse/>
+- 📚 Documentation: <https://fzaca.github.io/pharox/>
 
 ---
 
@@ -28,18 +28,18 @@ proxies without inheriting opinionated service architecture.
 
 ## Installation
 
-You can install `lighthouse` directly from PyPI:
+You can install `pharox` directly from PyPI:
 
 ```bash
-pip install lighthouse
+pip install pharox
 ```
 
 ## Quickstart Example
 
-Here is a simple example of how to use `lighthouse` with the default `InMemoryStorage` to acquire and release a proxy.
+Here is a simple example of how to use `pharox` with the default `InMemoryStorage` to acquire and release a proxy.
 
 ```python
-from lighthouse import (
+from pharox import (
     InMemoryStorage,
     Proxy,
     ProxyManager,
@@ -99,7 +99,7 @@ proximity. The storage layer handles the matching logic, including radius-based
 searches using latitude and longitude.
 
 ```python
-from lighthouse import ProxyFilters
+from pharox import ProxyFilters
 
 filters = ProxyFilters(
     country="AR",
@@ -126,7 +126,7 @@ Health checks are configurable via `HealthCheckOptions`, letting you define
 target URLs, expected status codes, retry counts, and latency thresholds.
 
 ```python
-from lighthouse import HealthCheckOptions, HealthChecker, ProxyStatus
+from pharox import HealthCheckOptions, HealthChecker, ProxyStatus
 
 checker = HealthChecker()
 options = HealthCheckOptions(
@@ -147,7 +147,7 @@ else:
 
 ## Embedding the Toolkit
 
-`lighthouse` is intentionally agnostic about where it runs. Typical usage
+`pharox` is intentionally agnostic about where it runs. Typical usage
 includes:
 
 * **Automation scripts and workers** leasing proxies with `ProxyManager` and

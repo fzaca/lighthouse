@@ -2,8 +2,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from lighthouse.manager import ProxyManager
-from lighthouse.storage.in_memory import InMemoryStorage
+from pharox.manager import ProxyManager
+from pharox.storage.in_memory import InMemoryStorage
 
 
 @pytest.fixture

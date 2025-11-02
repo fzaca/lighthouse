@@ -1,4 +1,4 @@
-"""Utility helpers for Lighthouse toolkit consumers."""
+"""Utility helpers for Pharox toolkit consumers."""
 
 from .bootstrap import (
     bootstrap_consumer,

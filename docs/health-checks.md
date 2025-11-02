@@ -1,15 +1,15 @@
 # Health Checking Toolkit
 
-Every Lighthouse deployment needs a consistent, repeatable way to verify that
+Every Pharox deployment needs a consistent, repeatable way to verify that
 proxies are reachable and responsive. The health module bundles that logic so
 scripts, SDK workers, and services all classify proxies the same way.
 
 ## Key Building Blocks
 
-- **`HealthCheckOptions`** (`lighthouse.models`): runtime configuration for a
+- **`HealthCheckOptions`** (`pharox.models`): runtime configuration for a
   probe (target URL, attempts, timeout, expected status codes, latency
   threshold, request headers, redirect policy).
-- **`HealthChecker`** (`lighthouse.health`): orchestrates checks, choosing the
+- **`HealthChecker`** (`pharox.health`): orchestrates checks, choosing the
   strategy that matches each proxy’s protocol and returning a
   `HealthCheckResult`.
 - **`HTTPHealthCheckStrategy`**: default strategy used for HTTP, HTTPS, SOCKS4,
@@ -17,7 +17,7 @@ scripts, SDK workers, and services all classify proxies the same way.
   classifies the result as `active`, `slow`, or `inactive`.
 
 > **Note**: SOCKS support relies on `httpx[socks]`. Install it alongside
-> Lighthouse with `pip install httpx[socks]` if you plan to probe SOCKS4/5
+> Pharox with `pip install httpx[socks]` if you plan to probe SOCKS4/5
 > endpoints.
 
 You can register additional strategies for custom protocols or handshake
@@ -29,7 +29,7 @@ behaviour, while reusing the rest of the orchestration logic.
 import asyncio
 from uuid import uuid4
 
-from lighthouse import HealthCheckOptions, HealthChecker, Proxy, ProxyProtocol
+from pharox import HealthCheckOptions, HealthChecker, Proxy, ProxyProtocol
 
 proxy = Proxy(
     host="dc.oxylabs.io",
@@ -68,7 +68,7 @@ print(result.status, result.latency_ms, result.status_code)
 results as they complete:
 
 ```python
-from lighthouse import ProxyStatus
+from pharox import ProxyStatus
 
 async def sweep(proxies):
     checker = HealthChecker()
@@ -94,7 +94,7 @@ Health checks often precede or follow leasing operations:
 3. Release the lease if the proxy fails or exhibits high latency.
 
 ```python
-from lighthouse import ProxyStatus
+from pharox import ProxyStatus
 
 async def acquire_and_probe(manager, storage, checker):
     lease = manager.acquire_proxy(pool_name="latam-residential")
@@ -119,8 +119,8 @@ SOCKS5 authentication step or verifying a proprietary tunnel). Implement
 `HealthCheckStrategy` and register it for the relevant protocol:
 
 ```python
-from lighthouse import ProxyProtocol
-from lighthouse.health import HealthCheckStrategy, HealthChecker
+from pharox import ProxyProtocol
+from pharox.health import HealthCheckStrategy, HealthChecker
 
 class RedisTunnelStrategy(HealthCheckStrategy):
     async def check(self, proxy, options):

@@ -7,7 +7,7 @@ keep track of pools, proxies, consumers, and leases.
 ## Creating a Manager
 
 ```python
-from lighthouse import InMemoryStorage, ProxyManager
+from pharox import InMemoryStorage, ProxyManager
 
 storage = InMemoryStorage()
 manager = ProxyManager(storage)
@@ -58,7 +58,7 @@ Use `ProxyFilters` to target specific proxies. Filters apply metadata such as
 country, provider, or geolocation:
 
 ```python
-from lighthouse import ProxyFilters
+from pharox import ProxyFilters
 
 filters = ProxyFilters(country="AR", source="oxylabs")
 lease = manager.acquire_proxy(
@@ -77,7 +77,7 @@ Each `Proxy` can define `max_concurrency`. The storage implementation checks the
 current lease count and prevents over-leasing.
 
 ```python
-from lighthouse import Proxy, ProxyStatus
+from pharox import Proxy, ProxyStatus
 
 proxy = Proxy(
     host="1.1.1.1",

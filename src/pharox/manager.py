@@ -1,8 +1,8 @@
 from contextlib import contextmanager
 from typing import Callable, Iterator, List, Optional
 
-from lighthouse.models import Lease, ProxyFilters
-from lighthouse.storage import IStorage
+from .models import Lease, ProxyFilters
+from .storage import IStorage
 
 
 class ProxyManager:

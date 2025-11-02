@@ -3,14 +3,14 @@
 from typing import Any, Optional, Union
 from uuid import UUID, uuid4
 
-from lighthouse.models import (
+from ..models import (
     Consumer,
     Proxy,
     ProxyPool,
     ProxyProtocol,
     ProxyStatus,
 )
-from lighthouse.storage import IStorage
+from ..storage import IStorage
 
 
 def bootstrap_consumer(

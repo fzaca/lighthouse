@@ -7,7 +7,7 @@ as your contract keeps every integration aligned.
 ## Proxy
 
 ```python
-from lighthouse import Proxy, ProxyProtocol, ProxyStatus
+from pharox import Proxy, ProxyProtocol, ProxyStatus
 
 proxy = Proxy(
     host="186.33.123.10",
@@ -36,7 +36,7 @@ Pools group proxies with shared configuration. Use pool names to pick distinct
 provider buckets or geographic segments.
 
 ```python
-from lighthouse import ProxyPool
+from pharox import ProxyPool
 
 pool = ProxyPool(name="latam-residential", description="Residential LatAm proxies")
 ```
@@ -47,7 +47,7 @@ A `Consumer` identifies the actor leasing proxies. This can be a worker name,
 a service, or any identifier meaningful to your system.
 
 ```python
-from lighthouse import Consumer
+from pharox import Consumer
 
 storage.add_consumer(Consumer(name="worker-1"))
 ```
@@ -70,7 +70,7 @@ lease.expires_at
 adapters decide how to evaluate them.
 
 ```python
-from lighthouse import ProxyFilters
+from pharox import ProxyFilters
 
 filters = ProxyFilters(
     country="CO",
@@ -92,7 +92,7 @@ Validation rules:
 Both proxies and leases expose enums for their lifecycle.
 
 ```python
-from lighthouse import ProxyStatus, LeaseStatus
+from pharox import ProxyStatus, LeaseStatus
 
 if result.status is ProxyStatus.SLOW:
     ...
@@ -102,4 +102,4 @@ if lease.status is LeaseStatus.RELEASED:
 ```
 
 Stay consistent with these enums when writing storage adapters or APIs so that
-all Lighthouse components can reason about state transitions identically.
+all Pharox components can reason about state transitions identically.

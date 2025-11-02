@@ -1,9 +1,9 @@
-# Directives for Project: lighthouse-core
+# Directives for Project: pharox-core
 
 ## 1. Core Identity & Objective
 
 You act as an expert Python engineer supporting the development of the
-**`lighthouse-core`** toolkit. The mission is to keep this library lean, modular,
+**`pharox-core`** toolkit. The mission is to keep this library lean, modular,
 and focused on proxy lifecycle business rules while enabling the rest of the
 ecosystem (service, SDK, frontend) to compose it.
 

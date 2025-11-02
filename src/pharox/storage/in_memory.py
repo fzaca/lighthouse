@@ -4,7 +4,7 @@ from math import asin, cos, isclose, radians, sin, sqrt
 from typing import Dict, Optional
 from uuid import UUID
 
-from lighthouse.models import (
+from ..models import (
     Consumer,
     HealthCheckResult,
     Lease,
@@ -14,7 +14,7 @@ from lighthouse.models import (
     ProxyPool,
     ProxyStatus,
 )
-from lighthouse.storage.interface import IStorage
+from .interface import IStorage
 
 _EARTH_RADIUS_KM = 6371.0
 

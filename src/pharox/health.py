@@ -4,14 +4,14 @@ from typing import AsyncGenerator, Dict, Iterable, Optional
 
 import httpx
 
-from lighthouse.models import (
+from .models import (
     HealthCheckOptions,
     HealthCheckResult,
     Proxy,
     ProxyProtocol,
     ProxyStatus,
 )
-from lighthouse.storage import IStorage
+from .storage import IStorage
 
 
 class HealthCheckStrategy(ABC):

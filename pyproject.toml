@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "lighthouse"
+name = "pharox"
 version = "0.3.0"
 description = "A modern library for managing, leasing, and monitoring proxy pools."
 readme = "README.md"
 license = "MIT"
-repository = "https://github.com/fzaca/lighthouse"
-packages = [{ include = "lighthouse", from = "src" }]
+repository = "https://github.com/fzaca/pharox"
+packages = [{ include = "pharox", from = "src" }]
 authors = ["fzaca zaca03zaca@gmail.com"]
 
 [tool.poetry.dependencies]
@@ -51,11 +51,11 @@ ignore = [
 convention = "numpy"
 
 [tool.ruff.isort]
-known-first-party = ["lighthouse"]
+known-first-party = ["pharox"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --cov=src/lighthouse --cov-report=term-missing"
+addopts = "-ra -q --cov=src/pharox --cov-report=term-missing"
 testpaths = ["tests"]
 
 [tool.mypy]

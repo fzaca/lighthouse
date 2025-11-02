@@ -9,7 +9,7 @@ same acquisition logic across applications.
 The bundled `InMemoryStorage` is ideal for tests and exploratory scripts.
 
 ```python
-from lighthouse import (
+from pharox import (
     InMemoryStorage,
     ProxyPool,
     ProxyProtocol,
@@ -75,4 +75,4 @@ Future storage modules might target:
 
 Keep the adapter project-specific so the toolkit remains storage-agnostic. When
 multiple teams need the same adapter, consider publishing it as a separate
-package that depends on `lighthouse`.
+package that depends on `pharox`.

@@ -1,8 +1,8 @@
-"""Public exports for the Lighthouse proxy management toolkit."""
+"""Public exports for the Pharox proxy management toolkit."""
 
-from lighthouse.health import HealthChecker, HealthCheckOrchestrator
-from lighthouse.manager import ProxyManager
-from lighthouse.models import (
+from .health import HealthChecker, HealthCheckOrchestrator
+from .manager import ProxyManager
+from .models import (
     Consumer,
     HealthCheckOptions,
     HealthCheckResult,
@@ -15,8 +15,8 @@ from lighthouse.models import (
     ProxyProtocol,
     ProxyStatus,
 )
-from lighthouse.storage import InMemoryStorage, IStorage
-from lighthouse.utils import (
+from .storage import InMemoryStorage, IStorage
+from .utils import (
     bootstrap_consumer,
     bootstrap_pool,
     bootstrap_proxy,

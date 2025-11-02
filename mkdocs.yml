@@ -1,9 +1,9 @@
-site_name: Lighthouse Toolkit
-site_description: Core toolkit documentation for the Lighthouse proxy platform.
-site_url: https://fzaca.github.io/lighthouse/
-repo_url: https://github.com/fzaca/lighthouse
-repo_name: fzaca/lighthouse
-copyright: "© {year} Lighthouse contributors"
+site_name: Pharox Toolkit
+site_description: Core toolkit documentation for the Pharox proxy platform.
+site_url: https://fzaca.github.io/pharox/
+repo_url: https://github.com/fzaca/pharox
+repo_name: fzaca/pharox
+copyright: "© {year} Pharox contributors"
 
 theme:
   name: shadcn
@@ -12,7 +12,7 @@ theme:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/fzaca/lighthouse
+      link: https://github.com/fzaca/pharox
       name: GitHub
 markdown_extensions:
   - admonition

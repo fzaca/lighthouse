@@ -1,6 +1,6 @@
 # Documentation Theme (mkdocs-shadcn)
 
-The Lighthouse docs use the
+The Pharox docs use the
 [`mkdocs-shadcn`](https://github.com/asiffer/mkdocs-shadcn) theme. It applies the
 `shadcn/ui` design system on top of MkDocs so the site feels modern without
 custom CSS.
@@ -23,7 +23,7 @@ theme:
 ## Supported Extensions
 
 The theme works with the standard Markdown extensions plus several `pymdownx`
-helpers. Lighthouse currently enables:
+helpers. Pharox currently enables:
 
 - `admonition`
 - `tables`
@@ -82,5 +82,5 @@ In another terminal, keep the Tailwind watcher running from the project root:
 bun dev
 ```
 
-The Lighthouse repository does not need Tailwind or the dev tooling—only the
+The Pharox repository does not need Tailwind or the dev tooling—only the
 published `mkdocs-shadcn` package is required.
