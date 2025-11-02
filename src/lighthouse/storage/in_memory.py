@@ -75,7 +75,7 @@ class _InMemoryPool:
             return False
         if filters.isp and proxy.isp != filters.isp:
             return False
-        if filters.asn and proxy.asn != filters.asn:
+        if filters.asn is not None and proxy.asn != filters.asn:
             return False
         if filters.latitude is not None and filters.longitude is not None:
             if proxy.latitude is None or proxy.longitude is None:
