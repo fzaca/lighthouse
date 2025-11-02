@@ -14,6 +14,8 @@ services.
   SDK and FastAPI service can reuse.
 - **Type-safe models:** Pydantic v2 models define the schema shared across every
   Pharox component.
+- **Lifecycle hooks:** Context managers and callbacks reduce boilerplate around
+  acquiring and releasing proxies.
 
 ## Quickstart
 
@@ -52,6 +54,16 @@ lease = manager.acquire_proxy(pool_name=pool.name)
 if lease:
     print("Proxy leased!", lease.proxy_id)
     manager.release_proxy(lease)
+```
+
+Prefer the context manager when you want automatic cleanup:
+
+```python
+with manager.with_lease(pool_name="latam-residential") as lease:
+    if not lease:
+        raise RuntimeError("No proxy available")
+    proxy = storage.get_proxy_by_id(lease.proxy_id)
+    do_work(proxy)
 ```
 
 The manager falls back to a `default` consumer automatically, so you only need

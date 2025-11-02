@@ -52,6 +52,28 @@ if lease:
 Leases should be released as soon as the caller finishes using the proxy. The
 storage layer decrements `current_leases` and updates the lease status.
 
+## Using the `with_lease` Context Manager
+
+To avoid manual `try/finally` blocks, `ProxyManager` exposes a context manager
+that automatically releases the lease when the block exits:
+
+```python
+with manager.with_lease(
+    pool_name="latam-residential",
+    consumer_name="worker-1",
+    duration_seconds=120,
+) as lease:
+    if not lease:
+        raise RuntimeError("No proxy available")
+
+    proxy = storage.get_proxy_by_id(lease.proxy_id)
+    do_work(proxy)
+```
+
+If acquisition fails, the context yields `None` so your code can decide whether
+to retry or fall back to another pool. When a lease is returned, the manager
+releases it even if exceptions occur inside the `with` block.
+
 ## Filtering Proxies
 
 Use `ProxyFilters` to target specific proxies. Filters apply metadata such as
@@ -103,3 +125,27 @@ print("Expired leases released:", released)
 
 Well-behaved storage adapters should also perform cleanup on their own cadence
 (e.g., cron job, background task, or database job).
+
+## Lifecycle Callbacks
+
+Register callbacks to hook into acquisition and release events—for example, to
+emit metrics or structured logs:
+
+```python
+def on_acquire(lease, pool, consumer, filters):
+    if lease:
+        print(f"{consumer} acquired {lease.proxy_id} from {pool}")
+    else:
+        print(f"{consumer} failed to acquire a proxy from {pool}")
+
+def on_release(lease):
+    print(f"Released {lease.proxy_id}")
+
+manager.register_acquire_callback(on_acquire)
+manager.register_release_callback(on_release)
+```
+
+Callbacks always run after storage operations complete. The acquire hook receives
+the resulting `Lease` (or `None`), the pool name, consumer name, and filters used,
+so you can record failure rates or latency per pool. The release hook only
+triggers when a lease is successfully released.
