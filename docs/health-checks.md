@@ -16,9 +16,9 @@ scripts, SDK workers, and services all classify proxies the same way.
   and SOCKS5 proxies. It performs real HTTP requests through the proxy and
   classifies the result as `active`, `slow`, or `inactive`.
 
-> **Note**: SOCKS support relies on `httpx[socks]`. Install it with
-> `pip install lighthouse[socks]` or `pip install httpx[socks]` if you plan to
-> probe SOCKS4/5 endpoints.
+> **Note**: SOCKS support relies on `httpx[socks]`. Install it alongside
+> Lighthouse with `pip install httpx[socks]` if you plan to probe SOCKS4/5
+> endpoints.
 
 You can register additional strategies for custom protocols or handshake
 behaviour, while reusing the rest of the orchestration logic.

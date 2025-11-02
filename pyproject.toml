@@ -12,7 +12,6 @@ authors = ["fzaca zaca03zaca@gmail.com"]
 python = "^3.10"
 pydantic = "^2.11.7"
 httpx = "^0.28.1"
-httpx-socks = { version = "^0.28.1", optional = true, extras = ["socks"], package = "httpx" }
 
 [tool.poetry.extras]
 socks = ["httpx-socks"]
