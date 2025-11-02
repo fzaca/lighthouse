@@ -5,16 +5,18 @@ import pytest
 
 from lighthouse.manager import ProxyManager
 from lighthouse.models import (
-    Consumer,
     Lease,
     LeaseStatus,
-    Proxy,
     ProxyFilters,
-    ProxyPool,
     ProxyProtocol,
     ProxyStatus,
 )
 from lighthouse.storage.in_memory import InMemoryStorage
+from lighthouse.utils.bootstrap import (
+    bootstrap_consumer,
+    bootstrap_pool,
+    bootstrap_proxy,
+)
 
 # --- Test Cases ---
 
@@ -32,19 +34,17 @@ def test_acquire_and_release_flow(
     incremented on acquisition and decremented on release.
     """
     # 1. SETUP: Create a consumer, pool, and proxy and add them to the storage
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxy = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="1.1.1.1",
         port=8080,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1,
     )
-    storage.add_proxy(proxy)
 
     # 2. ACQUIRE: Get a lease for the proxy
     lease = manager.acquire_proxy(
@@ -86,19 +86,17 @@ def test_concurrency_limit_is_respected(
 ):
     """Test that a proxy with a limited concurrency cannot be over-leased."""
     # SETUP: A proxy that allows only 2 concurrent leases
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxy = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="2.2.2.2",
         port=8080,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         max_concurrency=2,
     )
-    storage.add_proxy(proxy)
 
     # ACQUIRE up to the limit
     lease1 = manager.acquire_proxy(
@@ -135,19 +133,17 @@ def test_unlimited_concurrency(
     can be leased repeatedly without failure.
     """
     # SETUP: A proxy with no concurrency limit
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxy = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="3.3.3.3",
         port=8080,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         max_concurrency=None,
     )
-    storage.add_proxy(proxy)
 
     # ACQUIRE multiple times
     for i in range(10):
@@ -169,18 +165,16 @@ def test_inactive_proxy_is_not_acquired(
 ):
     """Test that a proxy marked as INACTIVE cannot be acquired."""
     # SETUP: An inactive proxy
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="4.4.4.4",
         port=8080,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.INACTIVE,
     )
-    storage.add_proxy(proxy)
 
     # ATTEMPT ACQUISITION
     lease = manager.acquire_proxy(
@@ -194,9 +188,8 @@ def test_acquire_from_non_existent_pool_returns_none(
 ):
     """Test that acquiring from a pool that doesn't exist returns None."""
     # SETUP
-    consumer = Consumer(name=test_consumer_name)
     storage = manager._storage
-    storage.add_consumer(consumer)
+    bootstrap_consumer(storage, name=test_consumer_name)
 
     lease = manager.acquire_proxy(
         pool_name="non-existent-pool", consumer_name=test_consumer_name
@@ -209,16 +202,15 @@ def test_acquire_proxy_with_default_consumer(
 ):
     """Test that a lease can be acquired without specifying a consumer."""
     # SETUP
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_pool(pool)
-    proxy = Proxy(
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="5.5.5.5",
         port=8080,
-        protocol="http",
-        pool_id=pool.id,
-        status=ProxyStatus.ACTIVE
+        protocol=ProxyProtocol.HTTP,
+        status=ProxyStatus.ACTIVE,
     )
-    storage.add_proxy(proxy)
 
     # ACT: Call acquire_proxy without consumer_name
     lease = manager.acquire_proxy(pool_name=test_pool_name)
@@ -236,19 +228,17 @@ def test_acquire_callbacks_are_invoked(
     test_pool_name: str,
 ):
     """Registered acquire callbacks receive the lease and context."""
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="10.10.10.10",
         port=8080,
         protocol=ProxyProtocol.HTTP,
-        pool_id=pool.id,
         status=ProxyStatus.ACTIVE,
         country="AR",
     )
-    storage.add_proxy(proxy)
 
     captured = []
 
@@ -302,18 +292,16 @@ def test_release_callbacks_are_invoked(
     test_pool_name: str,
 ):
     """Registered release callbacks are executed after release."""
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="11.11.11.11",
         port=8080,
         protocol=ProxyProtocol.HTTP,
-        pool_id=pool.id,
         status=ProxyStatus.ACTIVE,
     )
-    storage.add_proxy(proxy)
 
     captured = []
 
@@ -339,19 +327,17 @@ def test_with_lease_context_manager_releases_proxy(
     test_pool_name: str,
 ):
     """Ensure the with_lease helper releases proxies automatically."""
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxy = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="6.6.6.6",
         port=8080,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1,
     )
-    storage.add_proxy(proxy)
 
     with manager.with_lease(
         pool_name=test_pool_name, consumer_name=test_consumer_name
@@ -414,20 +400,17 @@ def test_releasing_a_lease_twice_is_safe(
 
     The `current_leases` count should only be decremented once.
     """
-    # SETUP
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxy = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="7.7.7.7",
         port=8080,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1,
     )
-    storage.add_proxy(proxy)
     lease = manager.acquire_proxy(
         pool_name=test_pool_name, consumer_name=test_consumer_name
     )
@@ -451,28 +434,26 @@ def test_acquire_from_pool_with_no_available_proxies(
 ):
     """Test that acquiring from a pool where all proxies are busy returns None."""
     # SETUP: Two exclusive-use proxies in the same pool
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy1 = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="8.8.8.8",
         port=8001,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1,
     )
-    proxy2 = Proxy(
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="8.8.8.8",
         port=8002,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1,
     )
-    storage.add_proxy(proxy1)
-    storage.add_proxy(proxy2)
 
     # ACT: Acquire both proxies, filling up the pool
     assert (
@@ -508,12 +489,14 @@ def test_create_lease_raises_value_error_for_non_existent_consumer(
     upholds its contract.
     """
     # SETUP
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_pool(pool)
-    proxy = Proxy(
-        host="9.9.9.9", port=8080, protocol="http", pool_id=pool.id
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxy = bootstrap_proxy(
+        storage,
+        pool=pool,
+        host="9.9.9.9",
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
     )
-    storage.add_proxy(proxy)
 
     # ACT & ASSERT
     with pytest.raises(ValueError, match="not found"):
@@ -535,28 +518,26 @@ def test_filtering_by_country_returns_correct_proxy(
 ):
     """Test that acquiring a proxy can be successfully filtered by country."""
     # SETUP: Two proxies in the same pool but with different countries
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy_ar = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxy_ar = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="1.1.1.1",
         port=8001,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         country="AR",
     )
-    proxy_co = Proxy(
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="2.2.2.2",
         port=8002,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         country="CO",
     )
-    storage.add_proxy(proxy_ar)
-    storage.add_proxy(proxy_co)
 
     # ACT: Acquire a proxy with a filter for Argentina
     filters = ProxyFilters(country="AR")
@@ -579,19 +560,17 @@ def test_filtering_returns_none_if_no_match(
 ):
     """Test that None is returned if no available proxy matches the filters."""
     # SETUP: Only one proxy from Argentina is available
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy_ar = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="1.1.1.1",
         port=8001,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         country="AR",
     )
-    storage.add_proxy(proxy_ar)
 
     # ACT: Try to acquire a proxy with a filter for Colombia
     filters = ProxyFilters(country="CO")
@@ -613,30 +592,28 @@ def test_filtering_by_multiple_attributes(
 ):
     """Test that filtering works correctly when multiple criteria are provided."""
     # SETUP: A mix of proxies to test combined filters
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy_ar_fast = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxy_ar_fast = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="1.1.1.1",
         port=8001,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         country="AR",
         source="fast-provider",
     )
-    proxy_ar_slow = Proxy(
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="1.1.1.1",
         port=8002,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         country="AR",
         source="slow-provider",
     )
-    storage.add_proxy(proxy_ar_fast)
-    storage.add_proxy(proxy_ar_slow)
 
     # ACT: Filter by both country and source
     filters = ProxyFilters(country="AR", source="fast-provider")
@@ -669,40 +646,38 @@ def test_filtering_respects_concurrency_and_status(
 ):
     """Test that filtering skips unavailable proxies that match criteria."""
     # SETUP: Two proxies match the filter, but one is busy and one is inactive
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
-    proxy_ar_busy = Proxy(
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="1.1.1.1",
         port=8001,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         country="AR",
         max_concurrency=1,
         current_leases=1,
     )
-    proxy_ar_inactive = Proxy(
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="1.1.1.1",
         port=8002,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.INACTIVE,
         country="AR",
     )
-    proxy_ar_available = Proxy(
+    proxy_ar_available = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="1.1.1.1",
         port=8003,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         country="AR",
         max_concurrency=1,
     )
-    storage.add_proxy(proxy_ar_busy)
-    storage.add_proxy(proxy_ar_inactive)
-    storage.add_proxy(proxy_ar_available)
 
     # ACT: Filter by country. The logic should skip the first two and find the third.
     filters = ProxyFilters(country="AR")
@@ -724,31 +699,29 @@ def test_filtering_by_geolocation(
     test_pool_name: str,
 ):
     """Filtering with geographic radius returns the closest matching proxy."""
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
 
-    buenos_aires = Proxy(
+    buenos_aires = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="11.11.11.11",
         port=8001,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         latitude=-34.6037,
         longitude=-58.3816,
     )
-    santiago = Proxy(
+    bootstrap_proxy(
+        storage,
+        pool=pool,
         host="22.22.22.22",
         port=8002,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         latitude=-33.4489,
         longitude=-70.6693,
     )
-    storage.add_proxy(buenos_aires)
-    storage.add_proxy(santiago)
 
     filters = ProxyFilters(latitude=-34.6, longitude=-58.38, radius_km=50)
     lease = manager.acquire_proxy(
@@ -768,20 +741,18 @@ def test_manager_reclaims_expired_leases(
     test_pool_name: str,
 ):
     """Expired leases are cleaned automatically when acquiring a proxy."""
-    consumer = Consumer(name=test_consumer_name)
-    pool = ProxyPool(name=test_pool_name)
-    storage.add_consumer(consumer)
-    storage.add_pool(pool)
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
 
-    proxy = Proxy(
+    proxy = bootstrap_proxy(
+        storage,
+        pool=pool,
         host="33.33.33.33",
         port=8003,
-        protocol="http",
-        pool_id=pool.id,
+        protocol=ProxyProtocol.HTTP,
         status=ProxyStatus.ACTIVE,
         max_concurrency=1,
     )
-    storage.add_proxy(proxy)
 
     first_lease = manager.acquire_proxy(
         pool_name=test_pool_name, consumer_name=test_consumer_name, duration_seconds=10

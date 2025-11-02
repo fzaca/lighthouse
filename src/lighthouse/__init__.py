@@ -16,6 +16,11 @@ from lighthouse.models import (
     ProxyStatus,
 )
 from lighthouse.storage import InMemoryStorage, IStorage
+from lighthouse.utils import (
+    bootstrap_consumer,
+    bootstrap_pool,
+    bootstrap_proxy,
+)
 
 __all__ = [
     "Consumer",
@@ -34,4 +39,7 @@ __all__ = [
     "ProxyPool",
     "ProxyProtocol",
     "ProxyStatus",
+    "bootstrap_consumer",
+    "bootstrap_pool",
+    "bootstrap_proxy",
 ]
