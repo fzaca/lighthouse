@@ -4,6 +4,10 @@ Every Pharox deployment needs a consistent, repeatable way to verify that
 proxies are reachable and responsive. The health module bundles that logic so
 scripts, SDK workers, and services all classify proxies the same way.
 
+!!! info "Looking for a complete sweep pipeline?"
+    See [Run Health Checks at Scale](how-to/health-sweeps.md) for an end-to-end
+    example that streams results and persists them via `IStorage`.
+
 ## Key Building Blocks
 
 - **`HealthCheckOptions`** (`pharox.models`): runtime configuration for a

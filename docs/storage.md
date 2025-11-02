@@ -4,6 +4,10 @@ The toolkit separates business rules from persistence using the `IStorage`
 interface. You can plug in custom adapters for your database while reusing the
 same acquisition logic across applications.
 
+!!! tip "Need a template?"
+    Follow the [PostgreSQL adapter walkthrough](how-to/postgres-adapter.md) for a
+    step-by-step example that you can adapt to your own datastore.
+
 ## In-Memory Storage
 
 The bundled `InMemoryStorage` is ideal for tests and exploratory scripts.

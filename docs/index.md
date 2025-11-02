@@ -1,82 +1,48 @@
 # Pharox Toolkit
 
-Welcome to the documentation hub for the Pharox proxy-management toolkit.
-This site focuses on the components you embed inside scripts, workers, or
-services.
+Pharox is the Python toolkit for building serious proxy orchestration systems.
+It focuses on the business rules—leasing, storage contracts, health orchestration
+and lifecycle hooks—so you can plug it into any application or service.
 
-## What You Get
+!!! tip "Just want to try it?"
+    Head straight to the [Quickstart](getting-started/quickstart.md) for an
+    end-to-end walkthrough you can run locally in under five minutes.
 
-- **Proxy lifecycle management:** Acquire and release proxies with concurrency
-  limits and lease tracking handled for you.
-- **Flexible storage adapters:** Implement the `IStorage` interface to back the
-  toolkit with any persistence layer (PostgreSQL, Redis, in-memory, etc.).
-- **Health checking helpers:** Run protocol-aware connectivity probes that the
-  SDK and FastAPI service can reuse.
-- **Type-safe models:** Pydantic v2 models define the schema shared across every
-  Pharox component.
-- **Lifecycle hooks:** Context managers and callbacks reduce boilerplate around
-  acquiring and releasing proxies.
+## Why Pharox
 
-## Quickstart
+- **Battle-tested leasing logic** with concurrency caps, cleanup helpers and
+  lifecycle callbacks ready for observability.
+- **Storage abstraction that scales**: swap the in-memory adapter for your own
+  datastore through the `IStorage` interface and shared contract tests.
+- **Health orchestration** that aligns workers, services and SDKs behind the
+  same `HealthCheckResult` semantics.
+- **Modern Python ergonomics**: Pydantic v2 models, type hints, Ruff formatting,
+  and context managers that reduce boilerplate.
 
-Install the package from PyPI and wire the in-memory storage to experiment
-locally:
+## Choose Your Path
 
-```bash
-pip install pharox
-```
+| If you want to… | Start here | Related reference |
+| --- | --- | --- |
+| Install, seed data, lease a proxy | [Quickstart](getting-started/quickstart.md) | [`ProxyManager`](reference/proxy-manager.md) |
+| Embed Pharox in a worker or script | [Embed Pharox in a Worker](how-to/embed-worker.md) | [`pharox.utils.bootstrap`](reference/bootstrap.md) |
+| Wire Pharox to a SQL datastore | [Build a PostgreSQL Adapter](how-to/postgres-adapter.md) | [`IStorage` contract](storage.md) |
+| Run protocol health sweeps | [Run Health Checks at Scale](how-to/health-sweeps.md) | [Health Toolkit](health-checks.md) |
 
-```python
-from pharox import (
-    InMemoryStorage,
-    ProxyManager,
-    ProxyProtocol,
-    ProxyStatus,
-    bootstrap_pool,
-    bootstrap_proxy,
-)
+## Architecture Snapshot
 
-storage = InMemoryStorage()
-manager = ProxyManager(storage=storage)
+The toolkit sits between your code and the storage layer:
 
-# Bootstrap a pool and proxy; the manager auto-creates the default consumer.
-pool = bootstrap_pool(storage, name="latam-residential")
-bootstrap_proxy(
-    storage,
-    pool=pool,
-    host="1.1.1.1",
-    port=8080,
-    protocol=ProxyProtocol.HTTP,
-    status=ProxyStatus.ACTIVE,
-)
+1. Your automation, service or CLI drives `ProxyManager`.
+2. `ProxyManager` delegates persistence to an `IStorage` implementation.
+3. Health checks use `HealthChecker` / `HealthCheckOrchestrator` to enforce
+   consistent classification.
+4. Callbacks and metrics hooks let you surface events without forking the core.
 
-lease = manager.acquire_proxy(pool_name=pool.name)
-if lease:
-    print("Proxy leased!", lease.proxy_id)
-    manager.release_proxy(lease)
-```
+See the [Architecture Overview](../projects/pharox/00-overview.md) in the Obsidian
+vault for detailed diagrams and future roadmap notes.
 
-Prefer the context manager when you want automatic cleanup:
+## Community & Support
 
-```python
-with manager.with_lease(pool_name="latam-residential") as lease:
-    if not lease:
-        raise RuntimeError("No proxy available")
-    proxy = storage.get_proxy_by_id(lease.proxy_id)
-    do_work(proxy)
-```
-
-The manager falls back to a `default` consumer automatically, so you only need
-to seed explicit consumers when you want per-tenant tracking.
-
-For more advanced examples and real-host testing, explore the draft script in
-`drafts/run_proxy_health_checks.py`.
-
-## Where to Go Next
-
-- Understand leasing flows in the [Proxy Manager guide](proxy-manager.md).
-- Review available models and filters in [Models & Filters](models.md).
-- Explore the configurable [Health Checks](health-checks.md).
-- Learn how to plug your database in [Storage Adapters](storage.md).
-- Visit the GitHub repository for issue tracking and release notes:
-  <https://github.com/fzaca/pharox>.
+- GitHub issues and discussions: <https://github.com/fzaca/pharox>
+- PyPI releases: <https://pypi.org/project/pharox/>
+- Documentation source: this site, built with MkDocs Material—PRs welcome!

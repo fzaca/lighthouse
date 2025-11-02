@@ -29,10 +29,27 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.tabbed:
       alternate_style: true
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: false
 nav:
   - Home: index.md
-  - Components:
-      - Proxy Manager: proxy-manager.md
+  - Getting Started:
+      - Quickstart: getting-started/quickstart.md
+  - How-To Guides:
+      - Embed Pharox in a Worker: how-to/embed-worker.md
+      - Build a PostgreSQL Adapter: how-to/postgres-adapter.md
+      - Run Health Checks at Scale: how-to/health-sweeps.md
+  - Concepts:
+      - Proxy Manager Deep Dive: proxy-manager.md
       - Models & Filters: models.md
       - Storage Adapters: storage.md
-      - Health Checks: health-checks.md
+      - Health Toolkit: health-checks.md
+  - Reference:
+      - ProxyManager API: reference/proxy-manager.md
+      - Bootstrap Helpers: reference/bootstrap.md
