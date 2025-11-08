@@ -30,7 +30,9 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
 extra_css:
-  - assets/highlight.css
+  - assets/shadcn/highlight.css
+extra_javascript:
+  - assets/highlight.js
 plugins:
   - search
   - autorefs:
