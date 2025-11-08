@@ -2,11 +2,13 @@ import os
 
 import pytest
 
-try:  # pragma: no cover - import guard for optional dependency
+try:  # pragma: no cover - optional dependency
     from sqlalchemy import create_engine, text
 except ImportError:  # pragma: no cover
-    create_engine = None  # type: ignore[assignment]
-    text = None  # type: ignore[assignment]
+    pytest.skip(
+        "Install the 'postgres' extra to run the Postgres adapter suite.",
+        allow_module_level=True,
+    )
 
 from pharox.models import Proxy, ProxyPool
 from pharox.storage.postgres import PostgresStorage
@@ -17,11 +19,7 @@ from pharox.tests.adapters import (
 )
 
 POSTGRES_URL = os.getenv("PHAROX_TEST_POSTGRES_URL")
-ENGINE = (
-    create_engine(POSTGRES_URL)
-    if (POSTGRES_URL and create_engine is not None)
-    else None
-)
+ENGINE = create_engine(POSTGRES_URL) if POSTGRES_URL else None
 
 pytestmark = pytest.mark.skipif(
     ENGINE is None,
