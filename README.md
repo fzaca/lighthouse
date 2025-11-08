@@ -176,6 +176,50 @@ layer.
   Compose, schema migrations, and customization notes you can copy into your
   services.
 
+## PostgreSQL Adapter Quickstart
+
+Pharox bundles a production-ready SQL adapter so you can persist pools, proxies,
+and leases without building storage plumbing from scratch.
+
+1. **Install the extras**
+
+   ```bash
+   pip install 'pharox[postgres]'
+   # or
+   poetry install --extras postgres
+   ```
+
+2. **Bring up Postgres locally**
+
+   ```bash
+   docker compose -f examples/postgres/docker-compose.yml up -d
+   psql postgresql://pharox:pharox@localhost:5439/pharox \
+       -f examples/postgres/migrations/0001_init.sql
+   ```
+
+3. **Use the adapter in code**
+
+   ```python
+   from sqlalchemy import create_engine
+
+   from pharox.manager import ProxyManager
+   from pharox.storage.postgres import PostgresStorage
+
+   engine = create_engine("postgresql+psycopg://pharox:pharox@localhost:5439/pharox")
+   storage = PostgresStorage(engine=engine)
+   manager = ProxyManager(storage=storage)
+   ```
+
+4. **Run the storage contract suite (optional)**
+
+   ```bash
+   PHAROX_TEST_POSTGRES_URL=postgresql+psycopg://pharox:pharox@localhost:5439/pharox \
+       poetry run pytest tests/test_storage_contract_postgres.py
+   ```
+
+Need more guidance? See the [Postgres adapter walkthrough](https://fzaca.github.io/pharox/how-to/postgres-adapter/)
+and the [storage adapter cookbook](https://fzaca.github.io/pharox/storage/).
+
 ## Contributing
 
 Contributions are welcome! Please see the `CONTRIBUTING.md` file for details on how to set up your development environment, run tests, and submit a pull request.
