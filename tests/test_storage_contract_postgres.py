@@ -8,9 +8,9 @@ except ImportError:  # pragma: no cover
     create_engine = None  # type: ignore[assignment]
     text = None  # type: ignore[assignment]
 
-from examples.postgres.adapter import PostgresStorage
-from examples.postgres.tables import pool_table, proxy_table
 from pharox.models import Proxy, ProxyPool
+from pharox.storage.postgres import PostgresStorage
+from pharox.storage.postgres.tables import pool_table, proxy_table
 from pharox.tests.adapters import (
     StorageContractFixtures,
     storage_contract_suite,

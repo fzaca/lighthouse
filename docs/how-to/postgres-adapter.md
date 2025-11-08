@@ -236,7 +236,7 @@ bundled with Pharox:
 import pytest
 from sqlalchemy import create_engine, text
 
-from examples.postgres.adapter import PostgresStorage
+from pharox.storage.postgres import PostgresStorage
 from pharox.models import Proxy, ProxyPool
 from pharox.tests.adapters import (
     StorageContractFixtures,
@@ -315,7 +315,8 @@ the suite in action.
 
 ## 4. Share as an Example
 
-Pharox already ships a reference adapter under `examples/postgres/`. Copy that
+Pharox already ships `pharox.storage.postgres.PostgresStorage` plus the
+`examples/postgres/` toolkit (docker-compose, migrations, and shims). Copy that
 directory into your service to kick-start a production implementation, and send
 improvements upstream (docs, migrations, tests) so the template keeps getting
 better. If you need to publish an internal fork, keep the README up to date so

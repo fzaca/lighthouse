@@ -171,9 +171,10 @@ layer.
 
 ## Examples
 
-- `examples/postgres/` ships a SQLAlchemy-based PostgreSQL adapter template,
-  including Docker Compose, schema migrations, and a drop-in `PostgresStorage`
-  implementation you can copy into your services.
+- `pharox.storage.postgres.PostgresStorage` provides the reference PostgreSQL
+  adapter. The accompanying `examples/postgres/` directory bundles Docker
+  Compose, schema migrations, and customization notes you can copy into your
+  services.
 
 ## Contributing
 

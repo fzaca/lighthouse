@@ -1,6 +1,7 @@
-"""Legacy import shim for the Postgres adapter tables."""
+"""PostgreSQL storage adapter and table metadata."""
 
-from pharox.storage.postgres.tables import (  # noqa: F401
+from .adapter import PostgresStorage
+from .tables import (
     consumer_table,
     lease_table,
     metadata,
@@ -9,6 +10,7 @@ from pharox.storage.postgres.tables import (  # noqa: F401
 )
 
 __all__ = [
+    "PostgresStorage",
     "metadata",
     "pool_table",
     "consumer_table",

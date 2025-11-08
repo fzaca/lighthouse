@@ -1,13 +1,14 @@
 # PostgreSQL Adapter Template
 
 This example shows how to back `ProxyManager` with PostgreSQL using SQLAlchemy
-Core. It lives outside the packaged library so teams can copy the adapter into
-their own services and extend it with organisation-specific migrations.
+Core. The adapter ships inside the `pharox.storage.postgres` package, while this
+directory keeps Docker Compose, migrations, and a shim module you can copy into
+your own services and extend with organisation-specific changes.
 
 ```
 examples/postgres/
-├── adapter.py          # Reference `PostgresStorage` implementation
-├── tables.py           # SQLAlchemy metadata used by the adapter
+├── adapter.py          # Legacy shim (re-exports `pharox.storage.postgres`)
+├── tables.py           # SQLAlchemy metadata re-exported from the package
 ├── migrations/
 │   └── 0001_init.sql   # Schema bootstrap script
 └── docker-compose.yml  # Disposable PostgreSQL for local testing
@@ -46,7 +47,7 @@ examples/postgres/
    from pharox.manager import ProxyManager
    from pharox.models import ProxyPool
    from pharox.storage.in_memory import InMemoryStorage  # for seeding helpers
-   from examples.postgres.adapter import PostgresStorage
+   from pharox.storage.postgres import PostgresStorage
 
    engine = create_engine("postgresql+psycopg://pharox:pharox@localhost:5439/pharox")
    storage = PostgresStorage(engine=engine)
@@ -66,7 +67,9 @@ examples/postgres/
 - Use your preferred migration tool (Alembic, Flyway, Liquibase). The SQL file
   is intentionally plain so it can be ported easily.
 - When adding columns that should hydrate the Pydantic models, update both
-  `tables.py` and `adapter.py` so the adapter round-trips the new fields.
+  `pharox.storage.postgres.tables` and `pharox.storage.postgres.adapter` so the
+  adapter round-trips the new fields (or copy the modules locally if you need
+  to diverge).
 
 ## Testing & Hardening
 
