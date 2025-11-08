@@ -9,6 +9,7 @@ except ImportError:  # pragma: no cover
     text = None  # type: ignore[assignment]
 
 from examples.postgres.adapter import PostgresStorage
+from examples.postgres.tables import pool_table, proxy_table
 from pharox.models import Proxy, ProxyPool
 from pharox.tests.adapters import (
     StorageContractFixtures,
@@ -54,17 +55,11 @@ def _seed_pool(storage: PostgresStorage, pool: ProxyPool) -> ProxyPool:
     assert ENGINE is not None
     with ENGINE.begin() as conn:
         conn.execute(
-            text(
-                """
-                INSERT INTO proxy_pool (id, name, description)
-                VALUES (:id, :name, :description)
-                """
-            ),
-            {
-                "id": str(pool.id),
-                "name": pool.name,
-                "description": pool.description,
-            },
+            pool_table.insert().values(
+                id=pool.id,
+                name=pool.name,
+                description=pool.description,
+            )
         )
     return pool
 
@@ -73,48 +68,19 @@ def _seed_proxy(storage: PostgresStorage, proxy: Proxy) -> Proxy:
     assert ENGINE is not None
     with ENGINE.begin() as conn:
         conn.execute(
-            text(
-                """
-                INSERT INTO proxy (
-                    id,
-                    pool_id,
-                    host,
-                    port,
-                    protocol,
-                    status,
-                    max_concurrency,
-                    current_leases,
-                    country,
-                    source,
-                    city
-                )
-                VALUES (
-                    :id,
-                    :pool_id,
-                    :host,
-                    :port,
-                    :protocol,
-                    :status,
-                    :max_concurrency,
-                    0,
-                    :country,
-                    :source,
-                    :city
-                )
-                """
-            ),
-            {
-                "id": str(proxy.id),
-                "pool_id": str(proxy.pool_id),
-                "host": proxy.host,
-                "port": proxy.port,
-                "protocol": proxy.protocol.value,
-                "status": proxy.status.value,
-                "max_concurrency": proxy.max_concurrency,
-                "country": proxy.country,
-                "source": proxy.source,
-                "city": proxy.city,
-            },
+            proxy_table.insert().values(
+                id=proxy.id,
+                pool_id=proxy.pool_id,
+                host=str(proxy.host),
+                port=proxy.port,
+                protocol=proxy.protocol,
+                status=proxy.status,
+                max_concurrency=proxy.max_concurrency,
+                current_leases=0,
+                country=proxy.country,
+                source=proxy.source,
+                city=proxy.city,
+            )
         )
     return proxy
 
