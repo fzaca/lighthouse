@@ -72,6 +72,28 @@ You can extend the models with extra fields (e.g., `tags`, `datacenter`) as long
 as they round-trip through the adapter and the additional metadata remains
 optional for other consumers.
 
+### `apply_health_check_result` Best Practices
+
+Adapters own the source of truth for proxy health. When implementing
+`apply_health_check_result`, ensure the method:
+
+- Updates `status` and `checked_at` atomically so new leases never see stale
+  state. Use `SELECT ... FOR UPDATE` or equivalent row locks in SQL backends.
+- Stores the latest latency/error metadata your organisation tracks (e.g.,
+  round-trip time, HTTP code, failure reason) so future dashboards and hooks
+  can consume it. Keep optional columns nullable for compatibility.
+- Resets counters when a proxy recovers (e.g., clear `error_message`,
+  decrement failure streaks) and consider pausing leases when repeated failures
+  push the status to `INACTIVE` or `BANNED`.
+- Ignores unknown proxies gracefully (return `None`) to keep orchestrators
+  resilient if a row was removed mid-sweep.
+- Emits updated `Proxy` copies (as the interface expects) so callbacks receive
+  the latest snapshot without mutating shared state.
+
+Document these behaviours in your adapter repo so operators know how health data
+propagates into leasing decisions. See `examples/postgres/` for a concrete
+reference.
+
 ## Planning Additional Adapters
 
 Future storage modules might target:

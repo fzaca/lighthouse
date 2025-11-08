@@ -217,6 +217,11 @@ The full implementation should guard against race conditions (e.g., using
 `FOR UPDATE` locks) and handle geospatial filters. Start simple, then iterate
 based on scale.
 
+!!! tip "Health result contract"
+    Align your `apply_health_check_result` with the guidance in
+    [Storage › Best Practices](../storage.md#apply_health_check_result-best-practices)
+    so every adapter exposes consistent status/latency data to the toolkit.
+
 ## 3. Run Contract Tests
 
 Before adopting the adapter in production, write tests that reuse the existing

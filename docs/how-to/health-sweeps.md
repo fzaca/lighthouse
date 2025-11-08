@@ -83,9 +83,10 @@ asyncio.run(sweep_and_update())
 ```
 
 !!! warning "Storage responsibilities"
-    Ensure your adapter's `apply_health_check_result` updates `status`,
-    `checked_at`, and any latency metadata so future leases respect fresh
-    health data.
+    `apply_health_check_result` is where health data becomes authoritative.
+    Follow the [best practices](../storage.md#apply_health_check_result-best-practices):
+    update `status` + `checked_at` atomically, persist latency/error metadata,
+    and return the refreshed `Proxy` so callbacks receive the latest snapshot.
 
 ## 5. Coordinate with Leasing
 
