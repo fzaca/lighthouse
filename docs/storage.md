@@ -94,68 +94,68 @@ Document these behaviours in your adapter repo so operators know how health data
 propagates into leasing decisions. See `examples/postgres/` for a concrete
 reference.
 
+## PostgreSQL Adapter
+
+Pharox includes `pharox.storage.postgres.PostgresStorage`, a SQLAlchemy Core
+adapter that implements every `IStorage` method.
+
+### 1. Install the extra
+
+```bash
+pip install 'pharox[postgres]'
+# or
+poetry install --extras postgres
+```
+
+### 2. Provision PostgreSQL
+
+```bash
+docker compose -f examples/postgres/docker-compose.yml up -d
+psql postgresql://pharox:pharox@localhost:5439/pharox \
+    -f examples/postgres/migrations/0001_init.sql
+```
+
+Use the SQL migrations as a starting point, then migrate them into your own
+Alembic/Flyway changelog before production.
+
+### 3. Instantiate the adapter
+
+```python
+from sqlalchemy import create_engine
+
+from pharox.manager import ProxyManager
+from pharox.storage.postgres import PostgresStorage
+
+engine = create_engine("postgresql+psycopg://pharox:pharox@localhost:5439/pharox")
+storage = PostgresStorage(engine=engine)
+manager = ProxyManager(storage=storage)
+```
+
+`PostgresStorage` exposes the same API surface as the in-memory adapter,
+including filters, lease cleanup, pool stats, and `apply_health_check_result`.
+Extend `pharox.storage.postgres.tables` if you need custom metadata columns.
+
+### 4. Run the adapter contract suite
+
+```bash
+export PHAROX_TEST_POSTGRES_URL="postgresql+psycopg://pharox:pharox@localhost:5439/pharox"
+poetry run pytest tests/test_storage_contract_postgres.py
+```
+
+The test truncates the tables between runs and verifies the adapter matches
+the behaviour expected by `ProxyManager`.
+
+### 5. Seed proxies for experiments
+
+`drafts/run_postgres_health_checks.py` reseeds a pool with demo proxies and runs
+health checks through the Postgres adapter. Update the host/port/credential
+constants to point at your own providers when experimenting locally.
+
 ## Storage Adapter Cookbook
 
 The checklist below distils recurring patterns from production adapters. Mix and
 match the recipes according to your datastore.
-
-### 1. Schema Checklist
-
-Every adapter needs four core entities:
-
-1. **Pools** – unique `name`, human-readable description, created timestamp.
-2. **Consumers** – unique `name` so lease history can be traced.
-3. **Proxies** – host/port/protocol, `status`, `max_concurrency`,
-   `current_leases`, geo metadata (`country`, `city`, `latitude`, `longitude`),
-   optional credentials, and timestamps (`checked_at`, `created_at`).
-4. **Leases** – `proxy_id`, `pool_id`, `consumer_id`, current `status`,
-   `acquired_at`, `expires_at`, `released_at`.
-
-Keep IDs immutable (`UUID` or numeric) and guard relationships with foreign
-keys. Add indexes on `proxy.pool_id`, `(pool_id, status)`, and any filterable
-columns (`country`, `source`, `asn`) to keep lookups fast.
-
-### 2. Acquire & Lease Recipes
-
-`find_available_proxy` should:
-
-- Join proxies with pools and lock the selected row (e.g., `FOR UPDATE SKIP LOCKED`).
-- Filter by `status == ACTIVE` and `current_leases < max_concurrency`.
-- Order by freshness (`checked_at`), tie-break with `id` to guarantee deterministic results.
-- Apply `ProxyFilters` directly in SQL (country/source/geo radius). Fall back to
-  Python-side filters only when your datastore lacks the feature.
-
-`create_lease` and `release_lease` must increment/decrement `current_leases`
-within the same transaction as the lease write. Clamp counters at zero to avoid
-underflow. When a proxy is no longer available between `find_available_proxy`
-and `create_lease`, raise a retriable error so `ProxyManager` can select the
-next candidate.
-
-`cleanup_expired_leases` should lock the affected leases, update their status
-to `RELEASED`, and batch `current_leases` decrements using counters grouped by
-`proxy_id`. This prevents stampedes when many leases expire at once.
-
-### 3. Health & Stats
-
-- Use `apply_health_check_result` to keep `status`, `checked_at`, and latency
-  columns consistent (see the best-practice list above).
-- `get_pool_stats` is queried on every callback. Cache-friendly SQL (single `SELECT`
-  with conditional aggregates) prevents throttling your database.
-- When adding new health metadata (error streaks, ban reasons), update the
-  adapter models and document the semantics so downstream dashboards stay aligned.
-
-### 4. Local Dev Loop
-
-| Task | Recommended Tooling |
-| --- | --- |
-| Spin up dependencies | `docker compose -f examples/postgres/docker-compose.yml up -d` |
-| Apply migrations | Plain SQL (`psql -f ...`) or Alembic, kept alongside the adapter |
-| Seed data | CLI scripts (`drafts/`) or fixtures that call adapter helpers |
-| Run contract suite | `poetry run pytest tests/test_storage_contract_<adapter>.py` with `PHAROX_TEST_POSTGRES_URL` set |
-
-The contract suite (`pharox.tests.adapters.storage_contract_suite`) ensures your
-adapter matches the behaviour of `InMemoryStorage`. Use it before running long
-health sweeps or deploying new columns.
+*** End Patch
 
 ### 5. Observability Hooks
 
@@ -181,12 +181,70 @@ rely on the adapter in production.
 
 ## Planning Additional Adapters
 
-Future storage modules might target:
+Pharox now ships a reference PostgreSQL adapter (`pharox.storage.postgres`) plus
+examples/migrations under `examples/postgres/`. Future adapters might target:
 
-- **Relational databases** (PostgreSQL, MySQL) using SQLAlchemy or async drivers.
+- **Other relational databases** (MySQL, SQL Server) using SQLAlchemy or native drivers.
 - **Document stores** (MongoDB) for flexible metadata.
 - **Distributed caches** (Redis) when leases need to be tracked at high volume.
 
-Keep the adapter project-specific so the toolkit remains storage-agnostic. When
-multiple teams need the same adapter, consider publishing it as a separate
-package that depends on `pharox`.
+Keep each adapter project-specific so the toolkit remains storage-agnostic. When
+multiple teams need the same implementation, consider publishing it as a
+standalone package that depends on `pharox`.
+
+## Using the Built-in PostgreSQL Adapter
+
+Pharox includes `pharox.storage.postgres.PostgresStorage`, a SQLAlchemy Core
+adapter that implements every `IStorage` method.
+
+### 1. Install the extra
+
+```bash
+pip install 'pharox[postgres]'
+# or
+poetry install --extras postgres
+```
+
+### 2. Provision PostgreSQL
+
+```bash
+docker compose -f examples/postgres/docker-compose.yml up -d
+psql postgresql://pharox:pharox@localhost:5439/pharox \
+    -f examples/postgres/migrations/0001_init.sql
+```
+
+Use the SQL migrations as a starting point, then migrate them into your own
+Alembic/Flyway changelog before production.
+
+### 3. Instantiate the adapter
+
+```python
+from sqlalchemy import create_engine
+
+from pharox.manager import ProxyManager
+from pharox.storage.postgres import PostgresStorage
+
+engine = create_engine("postgresql+psycopg://pharox:pharox@localhost:5439/pharox")
+storage = PostgresStorage(engine=engine)
+manager = ProxyManager(storage=storage)
+```
+
+`PostgresStorage` exposes the same API surface as the in-memory adapter,
+including filters, lease cleanup, pool stats, and `apply_health_check_result`.
+Extend `pharox.storage.postgres.tables` if you need custom metadata columns.
+
+### 4. Run the adapter contract suite
+
+```bash
+export PHAROX_TEST_POSTGRES_URL="postgresql+psycopg://pharox:pharox@localhost:5439/pharox"
+poetry run pytest tests/test_storage_contract_postgres.py
+```
+
+The test truncates the tables between runs and verifies the adapter matches
+the behaviour expected by `ProxyManager`.
+
+### 5. Seed proxies for experiments
+
+`drafts/run_postgres_health_checks.py` reseeds a pool with demo proxies and runs
+health checks through the Postgres adapter. Update the host/port/credential
+constants to point at your own providers when experimenting locally.
