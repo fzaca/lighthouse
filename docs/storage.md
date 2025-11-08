@@ -5,8 +5,9 @@ interface. You can plug in custom adapters for your database while reusing the
 same acquisition logic across applications.
 
 !!! tip "Need a template?"
-    Follow the [PostgreSQL adapter walkthrough](how-to/postgres-adapter.md) for a
-    step-by-step example that you can adapt to your own datastore.
+    Start from `examples/postgres/` (code, migrations, Docker) and follow the
+    [PostgreSQL adapter walkthrough](how-to/postgres-adapter.md) to tailor it to
+    your datastore.
 
 ## In-Memory Storage
 

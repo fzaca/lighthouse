@@ -11,7 +11,9 @@ applies to other ORMs or async drivers—swap libraries as needed.
 !!! note "Scope"
     This is a reference implementation you can adapt to your organisation's
     standards. It focuses on the required `IStorage` methods and leaves schema
-    migrations to tools like Alembic.
+    migrations to tools like Alembic. A maintained template (code + migrations +
+    Docker Compose) lives under `examples/postgres/` in the repository so you
+    can clone it directly.
 
 ## 1. Define the Schema
 
@@ -242,13 +244,8 @@ storage_contract_suite(storage)
 
 ## 4. Share as an Example
 
-Add your adapter and migrations under `examples/postgres/` so other teams can
-re-use it. Include:
-
-- `README.md` with setup instructions.
-- `docker-compose.yml` for local runs.
-- SQL migrations / Alembic scripts.
-- Pytest contract tests.
-
-Submit improvements back to Pharox or maintain them in your organisation's
-internal templates.
+Pharox already ships a reference adapter under `examples/postgres/`. Copy that
+directory into your service to kick-start a production implementation, and send
+improvements upstream (docs, migrations, tests) so the template keeps getting
+better. If you need to publish an internal fork, keep the README up to date so
+new teams can bootstrap quickly.

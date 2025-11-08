@@ -161,6 +161,12 @@ The in-memory adapter included with the package is great for development. For
 production, implement `IStorage` to connect the toolkit to your own persistence
 layer.
 
+## Examples
+
+- `examples/postgres/` ships a SQLAlchemy-based PostgreSQL adapter template,
+  including Docker Compose, schema migrations, and a drop-in `PostgresStorage`
+  implementation you can copy into your services.
+
 ## Contributing
 
 Contributions are welcome! Please see the `CONTRIBUTING.md` file for details on how to set up your development environment, run tests, and submit a pull request.
