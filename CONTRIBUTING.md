@@ -140,7 +140,17 @@ This project follows [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PA
     cz bump
     ```
 
-3.  **Push the changes and tags:**
+3.  **Generate release notes:**
+    Use the helper script to extract the latest changelog entry (it defaults to the current Poetry version). Pipe it to a file that you can upload to GitHub releases or automate further.
+
+    ```bash
+    poetry run python scripts/generate_release_notes.py \
+        --output dist/release-notes/v$(poetry version -s).md
+    ```
+
+    The command prints the destination file path. Use its contents as the body of the GitHub release or feed it into `gh release create`.
+
+4.  **Push the changes and tags:**
     After the command completes, push the commit and the new tag to the remote repository. The GitHub Actions workflow will then publish the package to PyPI.
 
     ```bash

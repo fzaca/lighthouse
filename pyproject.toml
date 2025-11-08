@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pharox"
-version = "0.3.0"
+version = "0.4.0"
 description = "A modern library for managing, leasing, and monitoring proxy pools."
 readme = "README.md"
 license = "MIT"
