@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pharox"
-version = "0.3.0"
+version = "0.4.0"
 description = "A modern library for managing, leasing, and monitoring proxy pools."
 readme = "README.md"
 license = "MIT"
@@ -12,9 +12,13 @@ authors = ["fzaca zaca03zaca@gmail.com"]
 python = "^3.10"
 pydantic = "^2.11.7"
 httpx = "^0.28.1"
+sqlalchemy = { version = "^2.0", optional = true }
+psycopg = { version = "^3.1", extras = ["binary"], optional = true }
+alembic = { version = "^1.13", optional = true }
 
 [tool.poetry.extras]
 socks = ["httpx-socks"]
+postgres = ["sqlalchemy", "psycopg", "alembic"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4"
@@ -58,6 +62,7 @@ known-first-party = ["pharox"]
 minversion = "7.0"
 addopts = "-ra -q --cov=src/pharox --cov-report=term-missing"
 testpaths = ["tests"]
+markers = ["contract: marks adapter contract tests that may require external services"]
 
 [tool.mypy]
 ignore_missing_imports = true

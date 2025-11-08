@@ -1,7 +1,13 @@
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import Callable, Iterator, List, Optional
 
-from .models import Lease, ProxyFilters
+from .models import (
+    AcquireEventPayload,
+    Lease,
+    ProxyFilters,
+    ReleaseEventPayload,
+)
 from .storage import IStorage
 
 
@@ -20,9 +26,11 @@ class ProxyManager:
     def __init__(self, storage: IStorage):
         self._storage = storage
         self._acquire_callbacks: List[
-            Callable[[Optional[Lease], str, str, Optional[ProxyFilters]], None]
+            Callable[[AcquireEventPayload], None]
         ] = []
-        self._release_callbacks: List[Callable[[Lease], None]] = []
+        self._release_callbacks: List[
+            Callable[[ReleaseEventPayload], None]
+        ] = []
 
     def acquire_proxy(
         self,
@@ -57,6 +65,7 @@ class ProxyManager:
             raise ValueError("duration_seconds must be greater than zero.")
 
         effective_consumer_name = consumer_name or self.DEFAULT_CONSUMER_NAME
+        started_at = datetime.now(timezone.utc)
 
         if effective_consumer_name == self.DEFAULT_CONSUMER_NAME:
             self._storage.ensure_consumer(effective_consumer_name)
@@ -69,11 +78,22 @@ class ProxyManager:
             lease = self._storage.create_lease(
                 proxy, effective_consumer_name, duration_seconds
             )
+        completed_at = datetime.now(timezone.utc)
+
         self._notify_acquire(
-            lease=lease,
-            pool_name=pool_name,
-            consumer_name=effective_consumer_name,
-            filters=filters,
+            AcquireEventPayload(
+                lease=lease,
+                pool_name=pool_name,
+                consumer_name=effective_consumer_name,
+                filters=filters,
+                started_at=started_at,
+                completed_at=completed_at,
+                duration_ms=max(
+                    0,
+                    int((completed_at - started_at).total_seconds() * 1000),
+                ),
+                pool_stats=self._storage.get_pool_stats(pool_name),
+            )
         )
         return lease
 
@@ -86,8 +106,31 @@ class ProxyManager:
         lease : Lease
             The lease to be released.
         """
+        released_at = datetime.now(timezone.utc)
+        lease.released_at = lease.released_at or released_at
         self._storage.release_lease(lease)
-        self._notify_release(lease)
+        pool_name = lease.pool_name
+        pool_stats = (
+            self._storage.get_pool_stats(pool_name) if pool_name else None
+        )
+        lease_duration_ms: Optional[int] = None
+        if lease.released_at:
+            lease_duration_ms = max(
+                0,
+                int(
+                    (lease.released_at - lease.acquired_at).total_seconds()
+                    * 1000
+                ),
+            )
+        self._notify_release(
+            ReleaseEventPayload(
+                lease=lease,
+                pool_name=pool_name,
+                released_at=lease.released_at,
+                lease_duration_ms=lease_duration_ms,
+                pool_stats=pool_stats,
+            )
+        )
 
     def cleanup_expired_leases(self) -> int:
         """Trigger cleanup of expired leases in the storage backend."""
@@ -122,28 +165,21 @@ class ProxyManager:
                 self.release_proxy(lease)
 
     def register_acquire_callback(
-        self,
-        callback: Callable[[Optional[Lease], str, str, Optional[ProxyFilters]], None],
+        self, callback: Callable[[AcquireEventPayload], None]
     ) -> None:
         """Register a callback invoked after attempting to acquire a proxy."""
         self._acquire_callbacks.append(callback)
 
     def register_release_callback(
-        self, callback: Callable[[Lease], None]
+        self, callback: Callable[[ReleaseEventPayload], None]
     ) -> None:
         """Register a callback invoked after releasing a proxy."""
         self._release_callbacks.append(callback)
 
-    def _notify_acquire(
-        self,
-        lease: Optional[Lease],
-        pool_name: str,
-        consumer_name: str,
-        filters: Optional[ProxyFilters],
-    ) -> None:
+    def _notify_acquire(self, payload: AcquireEventPayload) -> None:
         for callback in self._acquire_callbacks:
-            callback(lease, pool_name, consumer_name, filters)
+            callback(payload)
 
-    def _notify_release(self, lease: Lease) -> None:
+    def _notify_release(self, payload: ReleaseEventPayload) -> None:
         for callback in self._release_callbacks:
-            callback(lease)
+            callback(payload)

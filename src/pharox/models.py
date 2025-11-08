@@ -122,6 +122,8 @@ class Lease(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     proxy_id: UUID
     consumer_id: UUID
+    pool_id: Optional[UUID] = None
+    pool_name: Optional[str] = None
     status: LeaseStatus = LeaseStatus.ACTIVE
     acquired_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime
@@ -194,3 +196,42 @@ class HealthCheckOptions(BaseModel):
     slow_threshold_ms: Annotated[int, Field(default=2000, ge=0)] = 2000
     allow_redirects: bool = True
     headers: Dict[str, str] = Field(default_factory=dict)
+
+
+class PoolStatsSnapshot(BaseModel):
+    """Aggregated stats for a specific proxy pool."""
+
+    pool_name: str
+    total_proxies: int = Field(ge=0, default=0)
+    active_proxies: int = Field(ge=0, default=0)
+    available_proxies: int = Field(ge=0, default=0)
+    leased_proxies: int = Field(ge=0, default=0)
+    total_leases: int = Field(ge=0, default=0)
+    collected_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+
+class AcquireEventPayload(BaseModel):
+    """Callback payload describing a proxy acquisition attempt."""
+
+    lease: Optional[Lease]
+    pool_name: str
+    consumer_name: str
+    filters: Optional[ProxyFilters] = None
+    started_at: datetime
+    completed_at: datetime
+    duration_ms: int = Field(ge=0)
+    pool_stats: Optional[PoolStatsSnapshot] = None
+
+
+class ReleaseEventPayload(BaseModel):
+    """Callback payload describing a proxy release operation."""
+
+    lease: Lease
+    pool_name: Optional[str] = None
+    released_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    lease_duration_ms: Optional[int] = Field(default=None, ge=0)
+    pool_stats: Optional[PoolStatsSnapshot] = None

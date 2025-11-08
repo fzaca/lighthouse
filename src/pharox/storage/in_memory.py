@@ -9,6 +9,7 @@ from ..models import (
     HealthCheckResult,
     Lease,
     LeaseStatus,
+    PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
     ProxyPool,
@@ -240,16 +241,19 @@ class InMemoryStorage(IStorage):
             now = datetime.now(timezone.utc)
             expires_at = now + timedelta(seconds=duration_seconds)
 
+            pool = self._pools[proxy_in_storage.pool_id]
+
             lease = Lease(
                 proxy_id=proxy.id,
                 consumer_id=consumer_id,
+                pool_id=proxy_in_storage.pool_id,
+                pool_name=pool.name,
                 expires_at=expires_at,
                 acquired_at=now,
             )
 
             self._leases[lease.id] = lease
 
-            pool = self._pools[proxy_in_storage.pool_id]
             pool.proxies[proxy_in_storage.id].current_leases += 1
 
             return lease.model_copy(deep=True)
@@ -327,3 +331,40 @@ class InMemoryStorage(IStorage):
             proxy.checked_at = result.checked_at
 
             return proxy.model_copy(deep=True)
+
+    def get_pool_stats(self, pool_name: str) -> Optional[PoolStatsSnapshot]:
+        """Return aggregate stats for the requested pool."""
+        with self._lock:
+            pool_id = self._pool_name_to_id.get(pool_name)
+            if pool_id is None:
+                return None
+
+            pool = self._pools.get(pool_id)
+            if pool is None:
+                return None
+
+            proxies = list(pool.proxies.values())
+            total_proxies = len(proxies)
+            active_proxies = sum(
+                1 for proxy in proxies if proxy.status == ProxyStatus.ACTIVE
+            )
+            available_proxies = sum(
+                1
+                for proxy in proxies
+                if proxy.status == ProxyStatus.ACTIVE
+                and (
+                    proxy.max_concurrency is None
+                    or proxy.current_leases < proxy.max_concurrency
+                )
+            )
+            leased_proxies = sum(1 for proxy in proxies if proxy.current_leases > 0)
+            total_leases = sum(proxy.current_leases for proxy in proxies)
+
+            return PoolStatsSnapshot(
+                pool_name=pool.name,
+                total_proxies=total_proxies,
+                active_proxies=active_proxies,
+                available_proxies=available_proxies,
+                leased_proxies=leased_proxies,
+                total_leases=total_leases,
+            )

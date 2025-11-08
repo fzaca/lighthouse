@@ -18,27 +18,45 @@ Define callbacks once at process startup to centralise logging/metrics.
 
 ```python
 import logging
-from pharox import InMemoryStorage, ProxyManager
+from pharox import (
+    AcquireEventPayload,
+    InMemoryStorage,
+    ProxyManager,
+    ReleaseEventPayload,
+)
 
 logger = logging.getLogger("pharox.worker")
 
 storage = InMemoryStorage()
 manager = ProxyManager(storage=storage)
 
-def on_acquire(lease, pool, consumer, filters):
-    outcome = "success" if lease else "failure"
+def on_acquire(event: AcquireEventPayload):
+    outcome = "success" if event.lease else "failure"
     logger.info(
         "proxy.acquire",
         extra={
-            "pool": pool,
-            "consumer": consumer,
+            "pool": event.pool_name,
+            "consumer": event.consumer_name,
             "outcome": outcome,
-            "filters": filters.model_dump() if filters else None,
+            "duration_ms": event.duration_ms,
+            "filters": event.filters.model_dump() if event.filters else None,
+            "available": event.pool_stats.available_proxies
+            if event.pool_stats
+            else None,
         },
     )
 
-def on_release(lease):
-    logger.info("proxy.release", extra={"proxy_id": lease.proxy_id})
+def on_release(event: ReleaseEventPayload):
+    logger.info(
+        "proxy.release",
+        extra={
+            "proxy_id": event.lease.proxy_id,
+            "lease_duration_ms": event.lease_duration_ms,
+            "available": event.pool_stats.available_proxies
+            if event.pool_stats
+            else None,
+        },
+    )
 
 manager.register_acquire_callback(on_acquire)
 manager.register_release_callback(on_release)

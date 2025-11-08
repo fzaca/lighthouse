@@ -1,4 +1,14 @@
-## Unreleased
+## 0.4.0 (2025-11-08)
+
+### Feat
+
+- **storage**: embed postgres adapter into package
+- **tests**: add storage contract suite and postgres extra
+- add postgres storage adapter template
+- enrich proxy callbacks with telemetry payloads
+- add async helpers for ProxyManager
+
+## 0.3.0 (2025-11-02)
 
 ### Feat
 
@@ -13,6 +23,10 @@
 
 - **storage**: allow zero ASN filter
 - **models**: bracket ipv6 hosts in proxy url
+
+### Refactor
+
+- rename package to pharox
 
 ## 0.2.0 (2025-10-25)
 

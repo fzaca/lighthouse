@@ -34,6 +34,14 @@ You can install `pharox` directly from PyPI:
 pip install pharox
 ```
 
+Need the SQL adapter tooling? Install the optional extras:
+
+```bash
+pip install 'pharox[postgres]'
+# or, if you're hacking on the repo:
+poetry install --extras postgres
+```
+
 ## Quickstart Example
 
 Here is a simple example of how to use `pharox` with the default `InMemoryStorage` to acquire and release a proxy.
@@ -160,6 +168,13 @@ includes:
 The in-memory adapter included with the package is great for development. For
 production, implement `IStorage` to connect the toolkit to your own persistence
 layer.
+
+## Examples
+
+- `pharox.storage.postgres.PostgresStorage` provides the reference PostgreSQL
+  adapter. The accompanying `examples/postgres/` directory bundles Docker
+  Compose, schema migrations, and customization notes you can copy into your
+  services.
 
 ## Contributing
 

@@ -74,6 +74,45 @@ If acquisition fails, the context yields `None` so your code can decide whether
 to retry or fall back to another pool. When a lease is returned, the manager
 releases it even if exceptions occur inside the `with` block.
 
+### Async Flows
+
+The manager itself is synchronous, but you can still consume it from `async` code
+by off-loading blocking calls to a worker thread. Pharox bundles helpers for
+this exact use case:
+
+```python
+import asyncio
+from pharox import (
+    acquire_proxy_async,
+    release_proxy_async,
+    with_lease_async,
+)
+
+async def runner(manager):
+    lease = await acquire_proxy_async(
+        manager,
+        pool_name="latam-residential",
+        consumer_name="worker-1",
+    )
+    if lease:
+        await release_proxy_async(manager, lease)
+
+async def main(manager):
+    async with with_lease_async(
+        manager,
+        pool_name="latam-residential",
+    ) as lease:
+        if not lease:
+            return
+        # perform async work here
+
+asyncio.run(main(manager))
+```
+
+All three helpers use `asyncio.to_thread` so they remain compatible with any
+existing `IStorage` implementation without introducing a hard dependency on an
+async driver.
+
 ## Filtering Proxies
 
 Use `ProxyFilters` to target specific proxies. Filters apply metadata such as
@@ -132,20 +171,35 @@ Register callbacks to hook into acquisition and release events—for example, to
 emit metrics or structured logs:
 
 ```python
-def on_acquire(lease, pool, consumer, filters):
-    if lease:
-        print(f"{consumer} acquired {lease.proxy_id} from {pool}")
-    else:
-        print(f"{consumer} failed to acquire a proxy from {pool}")
+from pharox import AcquireEventPayload, ReleaseEventPayload
 
-def on_release(lease):
-    print(f"Released {lease.proxy_id}")
+
+def on_acquire(event: AcquireEventPayload):
+    outcome = "acquired" if event.lease else "miss"
+    duration = event.duration_ms
+    stats = event.pool_stats.model_dump() if event.pool_stats else {}
+    print(
+        f"{event.consumer_name} {outcome} from {event.pool_name} "
+        f"in {duration} ms — stats: {stats}"
+    )
+
+
+def on_release(event: ReleaseEventPayload):
+    duration = event.lease_duration_ms or 0
+    available = (
+        event.pool_stats.available_proxies if event.pool_stats else "n/a"
+    )
+    print(
+        f"Released {event.lease.proxy_id} after {duration} ms "
+        f"(available proxies: {available})"
+    )
+
 
 manager.register_acquire_callback(on_acquire)
 manager.register_release_callback(on_release)
 ```
 
-Callbacks always run after storage operations complete. The acquire hook receives
-the resulting `Lease` (or `None`), the pool name, consumer name, and filters used,
-so you can record failure rates or latency per pool. The release hook only
-triggers when a lease is successfully released.
+Callbacks now receive structured payloads with high-resolution timestamps,
+operation duration, and a `PoolStatsSnapshot`. Use these fields to emit metrics,
+compute queueing time, or alert when pools trend toward exhaustion. The release
+hook fires only when a lease is successfully released.
