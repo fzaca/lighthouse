@@ -60,11 +60,13 @@ seed_proxy = bootstrap_proxy(
 
 ## 4. Lease and Release a Proxy
 
-Lease a proxy from the pool. Prefer the context manager to guarantee cleanup,
-even if the work inside the block raises an exception.
+Lease a proxy from the pool. Prefer `ProxyManager.with_lease`—the context
+manager guarantees cleanup even if the work inside the block raises an
+exception, and it accepts the same options as `acquire_proxy` (consumer name,
+filters, custom durations).
 
 ```python
-with manager.with_lease(pool_name=pool.name) as lease:
+with manager.with_lease(pool_name=pool.name, duration_seconds=60) as lease:
     if not lease:
         raise RuntimeError("No proxy available")
 
@@ -80,7 +82,44 @@ Behind the scenes Pharox:
 3. Finds and locks an eligible proxy.
 4. Releases the lease automatically when the context closes.
 
-## 5. Add Filters (Optional)
+## 5. Emit Metrics via Callbacks
+
+`ProxyManager` can publish acquisition/release events so you can tie into your
+observability stack without forking the toolkit. Register callbacks once after
+creating the manager (in the snippet below, `metrics_client` represents whatever
+telemetry helper—StatsD, Prometheus, OTEL—you already use):
+
+```python
+from pharox import AcquireEventPayload, ReleaseEventPayload
+
+
+def on_acquire(event: AcquireEventPayload):
+    tags = {
+        "pool": event.pool_name,
+        "consumer": event.consumer_name,
+        "status": "hit" if event.lease else "miss",
+    }
+    duration = event.duration_ms or 0
+    pool_stats = event.pool_stats.model_dump() if event.pool_stats else {}
+    metrics_client.timing("pharox.acquire", duration, tags)
+    metrics_client.gauge("pharox.pool.available", pool_stats.get("available_proxies", 0), tags)
+
+
+def on_release(event: ReleaseEventPayload):
+    duration = event.lease_duration_ms or 0
+    tags = {"pool": event.lease.pool_name}
+    metrics_client.timing("pharox.lease_duration", duration, tags)
+
+
+manager.register_acquire_callback(on_acquire)
+manager.register_release_callback(on_release)
+```
+
+The payloads include timestamps, pool stats, and latency numbers that map
+directly to metrics or structured logs. Callbacks fire for **every** acquisition
+attempt, including misses, so you can track saturation and alert early.
+
+## 6. Add Filters (Optional)
 
 Target proxies by metadata or location using `ProxyFilters`.
 
@@ -95,7 +134,7 @@ if lease:
     manager.release_proxy(lease)
 ```
 
-## 6. Run a Health Check
+## 7. Run a Health Check
 
 Verify the proxy before using it in production. The health module classifies
 results consistently across all Pharox integrations.
@@ -124,6 +163,8 @@ print(result.status, result.latency_ms)
 
 - Dive deeper into [`ProxyManager`](../reference/proxy-manager.md) and the
   lifecycle callbacks.
+- Explore the [lifecycle hook recipes](../how-to/lifecycle-hooks.md) to wire
+  metrics and logs without forking the toolkit.
 - Learn how to [embed Pharox in a worker](../how-to/embed-worker.md) that runs
   inside a scheduler or automation pipeline.
 - Explore the [PostgreSQL adapter guide](../how-to/postgres-adapter.md) to store
