@@ -89,6 +89,27 @@ manager.register_release_callback(Callable[[Lease], None])
 - Callbacks run synchronously; keep them lightweight or hand off to background
   workers.
 
+## Async Helpers
+
+The core manager is synchronous, but Pharox exposes thin wrappers to make it
+ergonomic in `asyncio` applications:
+
+```python
+from pharox import (
+    acquire_proxy_async,
+    release_proxy_async,
+    with_lease_async,
+)
+```
+
+- `acquire_proxy_async` and `release_proxy_async` delegate to the synchronous
+  manager via `asyncio.to_thread`, keeping event loops responsive.
+- `with_lease_async` mirrors the synchronous context manager while ensuring
+  leases are released when the async block exits—even if an exception occurs.
+
+Use these helpers whenever your storage adapter is synchronous but the calling
+code runs inside an async worker or FastAPI route handler.
+
 ## Default Consumer Name
 
 - `ProxyManager.DEFAULT_CONSUMER_NAME == "default"`.
