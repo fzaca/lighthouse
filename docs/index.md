@@ -38,8 +38,6 @@ The toolkit sits between your code and the storage layer:
    consistent classification.
 4. Callbacks and metrics hooks let you surface events without forking the core.
 
-See the [Architecture Overview](../projects/pharox/00-overview.md) in the Obsidian
-vault for detailed diagrams and future roadmap notes.
 
 ## Community & Support
 
