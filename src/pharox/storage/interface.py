@@ -4,7 +4,13 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from uuid import UUID
 
-from ..models import HealthCheckResult, Lease, Proxy, ProxyFilters
+from ..models import (
+    HealthCheckResult,
+    Lease,
+    PoolStatsSnapshot,
+    Proxy,
+    ProxyFilters,
+)
 
 
 class IStorage(ABC):
@@ -89,4 +95,9 @@ class IStorage(ABC):
         -------
             A copy of the updated proxy, or None if the proxy was not found.
         """
+        pass
+
+    @abstractmethod
+    def get_pool_stats(self, pool_name: str) -> Optional[PoolStatsSnapshot]:
+        """Return aggregate stats for a pool."""
         pass

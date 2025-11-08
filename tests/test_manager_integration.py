@@ -5,11 +5,13 @@ import pytest
 
 from pharox.manager import ProxyManager
 from pharox.models import (
+    AcquireEventPayload,
     Lease,
     LeaseStatus,
     ProxyFilters,
     ProxyProtocol,
     ProxyStatus,
+    ReleaseEventPayload,
 )
 from pharox.storage.in_memory import InMemoryStorage
 from pharox.utils.bootstrap import (
@@ -240,10 +242,10 @@ def test_acquire_callbacks_are_invoked(
         country="AR",
     )
 
-    captured = []
+    captured: list[AcquireEventPayload] = []
 
-    def on_acquire(lease, pool_name, consumer_name, filters):
-        captured.append((lease, pool_name, consumer_name, filters))
+    def on_acquire(payload: AcquireEventPayload):
+        captured.append(payload)
 
     manager.register_acquire_callback(on_acquire)
 
@@ -255,22 +257,25 @@ def test_acquire_callbacks_are_invoked(
 
     assert lease is not None
     assert len(captured) == 1
-    captured_lease, captured_pool, captured_consumer, captured_filters = captured[0]
-    assert captured_lease == lease
-    assert captured_pool == test_pool_name
-    assert captured_consumer == test_consumer_name
-    assert captured_filters is not None
-    assert captured_filters.country == "AR"
+    payload = captured[0]
+    assert payload.lease == lease
+    assert payload.pool_name == test_pool_name
+    assert payload.consumer_name == test_consumer_name
+    assert payload.filters is not None
+    assert payload.filters.country == "AR"
+    assert payload.duration_ms >= 0
+    assert payload.pool_stats is not None
+    assert payload.pool_stats.pool_name == test_pool_name
 
 
 def test_acquire_callback_runs_on_miss(
     manager: ProxyManager, test_pool_name: str
 ):
     """Acquire callbacks execute even when no proxy is leased."""
-    called = []
+    called: list[AcquireEventPayload] = []
 
-    def on_acquire(lease, pool_name, consumer_name, filters):
-        called.append((lease, pool_name, consumer_name, filters))
+    def on_acquire(payload: AcquireEventPayload):
+        called.append(payload)
 
     manager.register_acquire_callback(on_acquire)
 
@@ -278,11 +283,12 @@ def test_acquire_callback_runs_on_miss(
 
     assert result is None
     assert len(called) == 1
-    lease, pool_name, consumer_name, filters = called[0]
-    assert lease is None
-    assert pool_name == test_pool_name
-    assert consumer_name == ProxyManager.DEFAULT_CONSUMER_NAME
-    assert filters is None
+    payload = called[0]
+    assert payload.lease is None
+    assert payload.pool_name == test_pool_name
+    assert payload.consumer_name == ProxyManager.DEFAULT_CONSUMER_NAME
+    assert payload.filters is None
+    assert payload.pool_stats is None
 
 
 def test_release_callbacks_are_invoked(
@@ -303,10 +309,10 @@ def test_release_callbacks_are_invoked(
         status=ProxyStatus.ACTIVE,
     )
 
-    captured = []
+    captured: list[ReleaseEventPayload] = []
 
-    def on_release(lease):
-        captured.append(lease)
+    def on_release(payload: ReleaseEventPayload):
+        captured.append(payload)
 
     manager.register_release_callback(on_release)
 
@@ -317,7 +323,12 @@ def test_release_callbacks_are_invoked(
     assert lease is not None
     manager.release_proxy(lease)
 
-    assert captured == [lease]
+    assert len(captured) == 1
+    payload = captured[0]
+    assert payload.lease == lease
+    assert payload.pool_name == test_pool_name
+    assert payload.pool_stats is not None
+    assert payload.lease_duration_ms is not None
 
 
 def test_with_lease_context_manager_releases_proxy(

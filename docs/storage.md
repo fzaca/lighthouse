@@ -57,13 +57,15 @@ Custom adapters live in your service or SDK codebase. They must implement:
 - `ensure_consumer(consumer_name)`
 - `release_lease(lease)`
 - `cleanup_expired_leases()`
+- `get_pool_stats(pool_name)`
 
 Typical responsibilities include:
 
 1. Translating `ProxyFilters` into database queries.
 2. Enforcing `max_concurrency` when creating leases.
 3. Persisting lease state changes and adjusting `current_leases` counters.
-4. Returning defensive copies of models so callers cannot mutate shared state.
+4. Computing pool snapshots for callbacks/telemetry (`PoolStatsSnapshot`).
+5. Returning defensive copies of models so callers cannot mutate shared state.
 
 You can extend the models with extra fields (e.g., `tags`, `datacenter`) as long
 as they round-trip through the adapter and the additional metadata remains

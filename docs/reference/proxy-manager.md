@@ -77,17 +77,31 @@ def with_lease(
 ## Callback Registration
 
 ```python
-manager.register_acquire_callback(
-    Callable[[Lease | None, str, str, ProxyFilters | None], None]
+from pharox import (
+    AcquireEventPayload,
+    ReleaseEventPayload,
 )
-manager.register_release_callback(Callable[[Lease], None])
+
+manager.register_acquire_callback(Callable[[AcquireEventPayload], None])
+manager.register_release_callback(Callable[[ReleaseEventPayload], None])
 ```
 
-- Acquire callbacks run after each `acquire_proxy` attempt. Receive `(lease,
-  pool_name, consumer_name, filters)`.
-- Release callbacks run only when a lease is successfully released.
+- `AcquireEventPayload` includes the resulting `Lease` (or `None`), the pool and
+  consumer names, resolved filters, `started_at` / `completed_at` timestamps, the
+  execution duration in milliseconds, and a `PoolStatsSnapshot`.
+- `ReleaseEventPayload` contains the released `Lease`, `released_at`, computed
+  lease duration, and the same pool stats snapshot captured after the release.
 - Callbacks run synchronously; keep them lightweight or hand off to background
   workers.
+
+### `PoolStatsSnapshot`
+
+`PoolStatsSnapshot` reports aggregated counts per pool:
+
+- `total_proxies`, `active_proxies`, `available_proxies`
+- `leased_proxies` (proxies with at least one active lease)
+- `total_leases` (sum of `current_leases` across the pool)
+- `collected_at` timestamp for when the snapshot was generated
 
 ## Async Helpers
 
