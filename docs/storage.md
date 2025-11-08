@@ -94,6 +94,18 @@ Document these behaviours in your adapter repo so operators know how health data
 propagates into leasing decisions. See `examples/postgres/` for a concrete
 reference.
 
+### Validate with Contract Tests
+
+Use `pharox.tests.adapters.storage_contract_suite` to verify that your adapter
+behaves like the in-memory reference. Provide fixtures that insert pools and
+proxies into your datastore, then run the suite inside your `pytest` harness.
+This catches subtle regressions (filters, concurrency, stats) before consumers
+rely on the adapter in production.
+
+!!! tip "Install extras"
+    The optional `postgres` extra bundles SQLAlchemy, psycopg, and Alembic:
+    `pip install 'pharox[postgres]'` or `poetry install --extras postgres`.
+
 ## Planning Additional Adapters
 
 Future storage modules might target:

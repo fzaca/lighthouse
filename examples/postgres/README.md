@@ -10,8 +10,7 @@ examples/postgres/
 ├── tables.py           # SQLAlchemy metadata used by the adapter
 ├── migrations/
 │   └── 0001_init.sql   # Schema bootstrap script
-├── docker-compose.yml  # Disposable PostgreSQL for local testing
-└── requirements.txt    # Optional dependencies (SQLAlchemy, psycopg, Alembic)
+└── docker-compose.yml  # Disposable PostgreSQL for local testing
 ```
 
 ## Quickstart
@@ -21,8 +20,9 @@ examples/postgres/
    ```bash
    python -m venv .venv
    source .venv/bin/activate
-   pip install -e .
-   pip install -r examples/postgres/requirements.txt
+   pip install -e '.[postgres]'
+   # or via Poetry:
+   # poetry install --extras postgres
    ```
 
 2. **Start PostgreSQL locally**:
@@ -70,12 +70,38 @@ examples/postgres/
 
 ## Testing & Hardening
 
-- Point `storage_contract_suite` (coming soon) at `PostgresStorage` to ensure
-  it matches the behaviour of the in-memory adapter.
+- Point `storage_contract_suite` at `PostgresStorage` to ensure it matches the
+  behaviour of the in-memory adapter.
 - Add database-level constraints that mirror toolkit invariants (e.g., unique
   pool names, non-negative `current_leases`).
 - Replace the naive geo filter in `_distance_km` with PostGIS or `earthdistance`
   when you need production-grade proximity queries.
+
+### Run the Contract Suite
+
+The Pharox package ships `StorageContractFixtures` and `storage_contract_suite`
+under `pharox.tests.adapters`. Provide adapter-specific seeding helpers and run
+the suite via `pytest`:
+
+```python
+fixtures = StorageContractFixtures(
+    make_storage=make_postgres_storage,
+    seed_pool=seed_pool_row,
+    seed_proxy=seed_proxy_row,
+)
+storage_contract_suite(fixtures)
+```
+
+This keeps the SQL template compatible with the behaviour expected by
+`ProxyManager` and makes it easy to validate downstream forks.
+
+Inside this repository you can run the ready-made test (skips automatically if
+no database URL is provided):
+
+```bash
+PHAROX_TEST_POSTGRES_URL=postgresql+psycopg://pharox:pharox@localhost:5439/pharox \
+    poetry run pytest tests/test_storage_contract_postgres.py
+```
 
 ## Next Steps
 

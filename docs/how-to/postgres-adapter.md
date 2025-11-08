@@ -15,6 +15,11 @@ applies to other ORMs or async drivers—swap libraries as needed.
     Docker Compose) lives under `examples/postgres/` in the repository so you
     can clone it directly.
 
+!!! info "Install optional dependencies"
+    The toolkit exposes a `postgres` extra that bundles SQLAlchemy, psycopg, and
+    Alembic. Install it via `pip install 'pharox[postgres]'` (or
+    `poetry install --extras postgres`) before running the examples below.
+
 ## 1. Define the Schema
 
 Create tables for pools, proxies, consumers, and leases. Below is a simplified
@@ -224,24 +229,85 @@ based on scale.
 
 ## 3. Run Contract Tests
 
-Before adopting the adapter in production, write tests that reuse the existing
-Pharox integration suite. Example with `pytest` fixtures:
+Before adopting the adapter in production, reuse the storage contract suite
+bundled with Pharox:
 
 ```python
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
-from pharox.tests.adapters import storage_contract_suite
-from my_project.storage import PostgresStorage
+from examples.postgres.adapter import PostgresStorage
+from pharox.models import Proxy, ProxyPool
+from pharox.tests.adapters import (
+    StorageContractFixtures,
+    storage_contract_suite,
+)
 
-@pytest.fixture
-def storage():
-    engine = create_engine("postgresql+psycopg://user:pass@localhost/pharox")
+engine = create_engine("postgresql+psycopg://user:pass@localhost/pharox")
+
+
+def make_storage() -> PostgresStorage:
     with engine.begin() as conn:
-        yield PostgresStorage(conn)
+        conn.execute(text("TRUNCATE lease, proxy, consumer, proxy_pool RESTART IDENTITY"))
+    return PostgresStorage(engine)
 
-storage_contract_suite(storage)
+
+def seed_pool(storage: PostgresStorage, pool: ProxyPool) -> ProxyPool:
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO proxy_pool (id, name, description) VALUES (:id, :name, :description)"
+            ),
+            {"id": str(pool.id), "name": pool.name, "description": pool.description},
+        )
+    return pool
+
+
+def seed_proxy(storage: PostgresStorage, proxy: Proxy) -> Proxy:
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO proxy (
+                    id, pool_id, host, port, protocol, status, max_concurrency,
+                    current_leases, country, source, city
+                )
+                VALUES (
+                    :id, :pool_id, :host, :port, :protocol, :status,
+                    :max_concurrency, 0, :country, :source, :city
+                )
+                """
+            ),
+            {
+                "id": str(proxy.id),
+                "pool_id": str(proxy.pool_id),
+                "host": proxy.host,
+                "port": proxy.port,
+                "protocol": proxy.protocol.value,
+                "status": proxy.status.value,
+                "max_concurrency": proxy.max_concurrency,
+                "country": proxy.country,
+                "source": proxy.source,
+                "city": proxy.city,
+            },
+        )
+    return proxy
+
+
+@pytest.mark.contract
+def test_postgres_storage_contract():
+    fixtures = StorageContractFixtures(
+        make_storage=make_storage,
+        seed_pool=seed_pool,
+        seed_proxy=seed_proxy,
+    )
+    storage_contract_suite(fixtures)
 ```
+
+Set `PHAROX_TEST_POSTGRES_URL` to point at a disposable database (e.g.,
+`postgresql+psycopg://pharox:pharox@localhost:5439/pharox`) and run
+`poetry run pytest tests/test_storage_contract_postgres.py` in this repo to see
+the suite in action.
 
 !!! tip "Spin up PostgreSQL fast"
     Use `docker compose up postgres` from the `/examples/postgres` directory

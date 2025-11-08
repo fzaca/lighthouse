@@ -34,6 +34,14 @@ You can install `pharox` directly from PyPI:
 pip install pharox
 ```
 
+Need the SQL adapter tooling? Install the optional extras:
+
+```bash
+pip install 'pharox[postgres]'
+# or, if you're hacking on the repo:
+poetry install --extras postgres
+```
+
 ## Quickstart Example
 
 Here is a simple example of how to use `pharox` with the default `InMemoryStorage` to acquire and release a proxy.
