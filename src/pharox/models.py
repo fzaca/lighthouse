@@ -1,10 +1,20 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Annotated, Dict, List, Optional, Union
+from math import asin, cos, isclose, radians, sin, sqrt
+from typing import Annotated, Callable, Dict, List, Optional, Union
 from urllib.parse import quote_plus
 from uuid import UUID, uuid4
 
-from pydantic import AnyHttpUrl, BaseModel, Field, IPvAnyAddress, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    ConfigDict,
+    Field,
+    IPvAnyAddress,
+    model_validator,
+)
 
 
 class ProxyStatus(str, Enum):
@@ -161,6 +171,8 @@ class HealthCheckResult(BaseModel):
 class ProxyFilters(BaseModel):
     """Represents the filters to apply when finding an available proxy."""
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     source: Optional[str] = None
     country: Optional[str] = None
     city: Optional[str] = None
@@ -177,6 +189,10 @@ class ProxyFilters(BaseModel):
             description="Search radius in kilometers for geo-proximity queries."
         )
     ] = None
+    all_of: Optional[List["ProxyFilters"]] = None
+    any_of: Optional[List["ProxyFilters"]] = None
+    none_of: Optional[List["ProxyFilters"]] = None
+    predicate: Optional[Callable[[Proxy], bool]] = None
 
     @model_validator(mode="after")
     def _validate_geo_filters(self) -> "ProxyFilters":
@@ -188,7 +204,96 @@ class ProxyFilters(BaseModel):
             raise ValueError(
                 "latitude and longitude must be provided when radius_km is set"
             )
+        self.all_of = self._normalize_children(self.all_of)
+        self.any_of = self._normalize_children(self.any_of)
+        self.none_of = self._normalize_children(self.none_of)
         return self
+
+    def matches(self, proxy: Proxy) -> bool:
+        """Return True when the proxy satisfies all conditions."""
+        if not self._matches_scalar_constraints(proxy):
+            return False
+        if self.predicate and not self.predicate(proxy):
+            return False
+        if self.all_of and not all(child.matches(proxy) for child in self.all_of):
+            return False
+        if self.any_of and not any(child.matches(proxy) for child in self.any_of):
+            return False
+        if self.none_of and any(child.matches(proxy) for child in self.none_of):
+            return False
+        return True
+
+    def requires_python(self) -> bool:
+        """Return True if this filter or nested clauses rely on a predicate."""
+        if self.predicate is not None:
+            return True
+        return any(child.requires_python() for child in self._iter_children())
+
+    def _iter_children(self) -> List["ProxyFilters"]:
+        children: List["ProxyFilters"] = []
+        if self.all_of:
+            children.extend(self.all_of)
+        if self.any_of:
+            children.extend(self.any_of)
+        if self.none_of:
+            children.extend(self.none_of)
+        return children
+
+    def _normalize_children(
+        self, candidates: Optional[List["ProxyFilters"]]
+    ) -> Optional[List["ProxyFilters"]]:
+        if not candidates:
+            return None
+        normalized = [child for child in candidates if child is not None]
+        return normalized or None
+
+    def _matches_scalar_constraints(self, proxy: Proxy) -> bool:
+        if self.source and proxy.source != self.source:
+            return False
+        if self.country and proxy.country != self.country:
+            return False
+        if self.city and proxy.city != self.city:
+            return False
+        if self.isp and proxy.isp != self.isp:
+            return False
+        if self.asn is not None and proxy.asn != self.asn:
+            return False
+        if not self._matches_geo(proxy):
+            return False
+        return True
+
+    def _matches_geo(self, proxy: Proxy) -> bool:
+        if self.latitude is None or self.longitude is None:
+            return True
+        if proxy.latitude is None or proxy.longitude is None:
+            return False
+        if self.radius_km is None:
+            return bool(
+                isclose(proxy.latitude, self.latitude, abs_tol=1e-6)
+                and isclose(proxy.longitude, self.longitude, abs_tol=1e-6)
+            )
+        return (
+            self._haversine_distance_km(
+                self.latitude,
+                self.longitude,
+                proxy.latitude,
+                proxy.longitude,
+            )
+            <= self.radius_km
+        )
+
+    @staticmethod
+    def _haversine_distance_km(
+        lat1: float, lon1: float, lat2: float, lon2: float
+    ) -> float:
+        """Compute the great-circle distance between two coordinates."""
+        lat1_rad, lon1_rad = radians(lat1), radians(lon1)
+        lat2_rad, lon2_rad = radians(lat2), radians(lon2)
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        a = sin(dlat / 2) ** 2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2) ** 2
+        c = 2 * asin(sqrt(a))
+        return 6371.0 * c
 
 
 class HealthCheckOptions(BaseModel):

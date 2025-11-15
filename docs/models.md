@@ -86,6 +86,10 @@ Validation rules:
 
 - Latitude and longitude must appear together.
 - If `radius_km` is set, geolocation coordinates are required.
+- Combine complex logic with `all_of`, `any_of`, and `none_of` by nesting
+  additional `ProxyFilters` instances, or provide a `predicate` callable for
+  custom Python-side matching. The predicate receives the candidate `Proxy` and
+  should return `True` when it qualifies.
 
 ## Status Enums
 

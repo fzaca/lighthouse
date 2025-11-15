@@ -184,6 +184,16 @@ from pharox import (
 Use these helpers whenever your storage adapter is synchronous but the calling
 code runs inside an async worker or FastAPI route handler.
 
+## Proxy Filters
+
+- `ProxyFilters` accepts simple equality or geospatial constraints plus optional
+  boolean structure via `all_of`, `any_of`, and `none_of`.
+- Nested filters let you express clauses such as
+  “(country=AR OR country=BR) AND source=latam.”
+- `predicate` accepts a callable `Callable[[Proxy], bool]` for adapter-level
+  evaluation. Keep predicates side-effect free and fast; SQL adapters fetch
+  extra candidates under the hood when a predicate is present.
+
 ## Default Consumer Name
 
 - `ProxyManager.DEFAULT_CONSUMER_NAME == "default"`.

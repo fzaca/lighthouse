@@ -80,6 +80,7 @@ class _StorageContractSuite:
         self._consumer_roundtrip()
         self._finds_active_proxy()
         self._filters_proxies()
+        self._composite_filters()
         self._enforces_concurrency_limits()
         self._least_used_selector_prefers_lowest_load()
         self._round_robin_selector_cycles()
@@ -122,6 +123,52 @@ class _StorageContractSuite:
             )
 
             filters = ProxyFilters(country="CL", source="andina", city="Santiago")
+            candidate = storage.find_available_proxy(pool.name, filters=filters)
+            assert candidate is not None
+            assert candidate.id == target.id
+
+    def _composite_filters(self) -> None:
+        with self._storage() as storage:
+            pool = self._make_pool(storage, "composite")
+            self._make_proxy(
+                storage,
+                pool,
+                host="10.10.0.10",
+                country="AR",
+                source="latam",
+                city="Buenos Aires",
+            )
+            target = self._make_proxy(
+                storage,
+                pool,
+                host="10.10.0.20",
+                country="BR",
+                source="andina",
+                city="Sao Paulo",
+            )
+            self._make_proxy(
+                storage,
+                pool,
+                host="10.10.0.30",
+                country="CL",
+                source="blocked",
+                city="Forbidden",
+            )
+
+            filters = ProxyFilters(
+                any_of=[
+                    ProxyFilters(country="AR", source="latam"),
+                    ProxyFilters(
+                        all_of=[
+                            ProxyFilters(country="BR"),
+                            ProxyFilters(source="andina"),
+                        ]
+                    ),
+                ],
+                none_of=[ProxyFilters(city="Forbidden")],
+                predicate=lambda proxy: str(proxy.host).endswith(".20"),
+            )
+
             candidate = storage.find_available_proxy(pool.name, filters=filters)
             assert candidate is not None
             assert candidate.id == target.id

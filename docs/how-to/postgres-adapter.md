@@ -120,12 +120,15 @@ class PostgresStorage(IStorage):
         )
 
         if filters:
+            # Translate simple equality/geo clauses into SQL first.
             if filters.country:
                 query = query.where(proxy_table.c.country == filters.country)
             if filters.source:
                 query = query.where(proxy_table.c.source == filters.source)
             if filters.asn is not None:
                 query = query.where(proxy_table.c.asn == filters.asn)
+            # Composite clauses/predicates can fall back to `filters.matches()`
+            # after fetching a candidate.
 
         row = self._conn.execute(query).m.fetchone()
         return Proxy.model_validate(row) if row else None
@@ -236,7 +239,10 @@ class PostgresStorage(IStorage):
 
 The full implementation should guard against race conditions (e.g., using
 `FOR UPDATE` locks) and handle geospatial filters. Start simple, then iterate
-based on scale.
+based on scale. Remember that `ProxyFilters` can include nested `all_of` /
+`any_of` / `none_of` clauses plus a Python predicate; SQL adapters typically
+push as much as possible into the query builder and then evaluate predicates in
+Python before returning the proxy.
 
 !!! tip "Health result contract"
     Align your `apply_health_check_result` with the guidance in

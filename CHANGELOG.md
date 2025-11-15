@@ -4,6 +4,7 @@
 
 - add selector strategies for proxy acquisition (least-used, round-robin)
 - persist selector cursors for the Postgres adapter and docs
+- support composite proxy filters (AND/OR + predicates) across adapters and docs
 
 ## 0.4.0 (2025-11-08)
 

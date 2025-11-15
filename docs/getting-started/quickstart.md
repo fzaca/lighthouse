@@ -145,6 +145,10 @@ if lease:
     manager.release_proxy(lease)
 ```
 
+For richer logic, chain filters via `any_of` / `all_of` / `none_of` and add a
+`predicate` for custom checks. All adapters enforce the boolean tree before a
+lease is created.
+
 ## 7. Choose a Selector (Optional)
 
 Different workloads benefit from different proxy ordering. Use

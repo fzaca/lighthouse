@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -68,7 +68,7 @@ class PostgresStorage(IStorage):
                 return None
             pool_id = pool_row["id"]
 
-            availability = (
+            base_availability = (
                 select(proxy_table)
                 .where(
                     proxy_table.c.pool_id == pool_id,
@@ -80,10 +80,29 @@ class PostgresStorage(IStorage):
                     ),
                 )
             )
-            availability = self._apply_filters(availability, filters)
+            availability = self._apply_filters(base_availability, filters)
             strategy = selector or SelectorStrategy.FIRST_AVAILABLE
-            row = self._run_selector(conn, pool_id, availability, strategy)
-            return Proxy.model_validate(dict(row)) if row else None
+            excluded_ids: List[UUID] = []
+
+            while True:
+                candidate_stmt = availability
+                if excluded_ids:
+                    candidate_stmt = candidate_stmt.where(
+                        ~proxy_table.c.id.in_(excluded_ids)
+                    )
+                row = self._run_selector(
+                    conn, pool_id, candidate_stmt, strategy
+                )
+                if not row:
+                    return None
+                proxy_row = Proxy.model_validate(dict(row))
+                if not filters or filters.matches(proxy_row):
+                    if strategy == SelectorStrategy.ROUND_ROBIN:
+                        self._set_selector_last_id(
+                            conn, pool_id, strategy, proxy_row.id
+                        )
+                    return proxy_row
+                excluded_ids.append(proxy_row.id)
 
     def create_lease(
         self, proxy: Proxy, consumer_name: str, duration_seconds: int
@@ -368,12 +387,6 @@ class PostgresStorage(IStorage):
         )
         if not row:
             return None
-        self._set_selector_last_id(
-            conn,
-            pool_id,
-            SelectorStrategy.ROUND_ROBIN,
-            row["id"],
-        )
         return row
 
     def _get_selector_last_id(
@@ -443,34 +456,66 @@ class PostgresStorage(IStorage):
         if not filters:
             return stmt
 
-        if filters.country:
-            stmt = stmt.where(proxy_table.c.country == filters.country)
-        if filters.source:
-            stmt = stmt.where(proxy_table.c.source == filters.source)
-        if filters.city:
-            stmt = stmt.where(proxy_table.c.city == filters.city)
-        if filters.isp:
-            stmt = stmt.where(proxy_table.c.isp == filters.isp)
+        clause = self._build_filter_clause(filters)
+        if clause is None:
+            return stmt
+        return stmt.where(clause)
+
+    def _build_filter_clause(self, filters: ProxyFilters):
+        clauses = []
+        mapping = {
+            "country": proxy_table.c.country,
+            "source": proxy_table.c.source,
+            "city": proxy_table.c.city,
+            "isp": proxy_table.c.isp,
+        }
+        for attr, column in mapping.items():
+            value = getattr(filters, attr)
+            if value:
+                clauses.append(column == value)
         if filters.asn is not None:
-            stmt = stmt.where(proxy_table.c.asn == filters.asn)
+            clauses.append(proxy_table.c.asn == filters.asn)
 
         if filters.latitude is not None and filters.longitude is not None:
-            stmt = stmt.where(
-                proxy_table.c.latitude.is_not(None),
-                proxy_table.c.longitude.is_not(None),
-            )
+            clauses.append(proxy_table.c.latitude.is_not(None))
+            clauses.append(proxy_table.c.longitude.is_not(None))
             if filters.radius_km is None:
-                stmt = stmt.where(
-                    proxy_table.c.latitude == filters.latitude,
-                    proxy_table.c.longitude == filters.longitude,
-                )
+                clauses.append(proxy_table.c.latitude == filters.latitude)
+                clauses.append(proxy_table.c.longitude == filters.longitude)
             else:
-                stmt = stmt.where(
+                clauses.append(
                     self._distance_km(filters.latitude, filters.longitude)
                     <= filters.radius_km
                 )
 
-        return stmt
+        for child in filters.all_of or []:
+            child_clause = self._build_filter_clause(child)
+            if child_clause is not None:
+                clauses.append(child_clause)
+
+        if filters.any_of:
+            child_clauses = [
+                self._build_filter_clause(child)
+                for child in filters.any_of
+            ]
+            child_clauses = [clause for clause in child_clauses if clause is not None]
+            if child_clauses:
+                clauses.append(or_(*child_clauses))
+
+        if filters.none_of:
+            child_clauses = [
+                self._build_filter_clause(child)
+                for child in filters.none_of
+            ]
+            child_clauses = [clause for clause in child_clauses if clause is not None]
+            if child_clauses:
+                clauses.append(~or_(*child_clauses))
+
+        if not clauses:
+            return None
+        if len(clauses) == 1:
+            return clauses[0]
+        return and_(*clauses)
 
     def _ensure_consumer(self, conn: Connection, consumer_name: str) -> UUID:
         insert_stmt = (

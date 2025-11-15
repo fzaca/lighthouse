@@ -62,7 +62,9 @@ Custom adapters live in your service or SDK codebase. They must implement:
 
 Typical responsibilities include:
 
-1. Translating `ProxyFilters` into database queries.
+1. Translating `ProxyFilters` (including nested `all_of` / `any_of` / `none_of`
+   clauses) into database queries, and evaluating any Python predicates before
+   confirming a lease.
 2. Enforcing `max_concurrency` when creating leases.
 3. Persisting lease state changes and adjusting `current_leases` counters.
 4. Computing pool snapshots for callbacks/telemetry (`PoolStatsSnapshot`).

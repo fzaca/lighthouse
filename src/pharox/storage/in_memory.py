@@ -1,6 +1,5 @@
 import threading
 from datetime import datetime, timedelta, timezone
-from math import asin, cos, isclose, radians, sin, sqrt
 from typing import Dict, List, Optional
 from uuid import UUID
 
@@ -17,21 +16,6 @@ from ..models import (
     SelectorStrategy,
 )
 from .interface import IStorage
-
-_EARTH_RADIUS_KM = 6371.0
-
-
-def _haversine_distance_km(
-    lat1: float, lon1: float, lat2: float, lon2: float
-) -> float:
-    """Compute the great-circle distance between two coordinates."""
-    lat1_rad, lon1_rad = radians(lat1), radians(lon1)
-    lat2_rad, lon2_rad = radians(lat2), radians(lon2)
-    dlat = lat2_rad - lat1_rad
-    dlon = lon2_rad - lon1_rad
-    a = sin(dlat / 2) ** 2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2) ** 2
-    c = 2 * asin(sqrt(a))
-    return _EARTH_RADIUS_KM * c
 
 
 class _InMemoryPool:
@@ -76,35 +60,7 @@ class _InMemoryPool:
         """Check if a proxy matches all provided filters."""
         if not filters:
             return True
-        if filters.source and proxy.source != filters.source:
-            return False
-        if filters.country and proxy.country != filters.country:
-            return False
-        if filters.city and proxy.city != filters.city:
-            return False
-        if filters.isp and proxy.isp != filters.isp:
-            return False
-        if filters.asn is not None and proxy.asn != filters.asn:
-            return False
-        if filters.latitude is not None and filters.longitude is not None:
-            if proxy.latitude is None or proxy.longitude is None:
-                return False
-            if filters.radius_km is None:
-                if not (
-                    isclose(proxy.latitude, filters.latitude, abs_tol=1e-6)
-                    and isclose(proxy.longitude, filters.longitude, abs_tol=1e-6)
-                ):
-                    return False
-            else:
-                distance = _haversine_distance_km(
-                    filters.latitude,
-                    filters.longitude,
-                    proxy.latitude,
-                    proxy.longitude,
-                )
-                if distance > filters.radius_km:
-                    return False
-        return True
+        return filters.matches(proxy)
 
 
 class InMemoryStorage(IStorage):

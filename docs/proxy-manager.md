@@ -179,6 +179,30 @@ lease = manager.acquire_proxy(
 If you need radius-based matching, include `latitude`, `longitude`, and
 `radius_km`. Storage adapters are in charge of interpreting these filters.
 
+### Composite Filters and Predicates
+
+`ProxyFilters` also support basic boolean logic:
+
+- `all_of`: every nested clause must match.
+- `any_of`: at least one nested clause must match.
+- `none_of`: no nested clause may match.
+- `predicate`: Python callable invoked with each candidate `Proxy`.
+
+```python
+filters = ProxyFilters(
+    any_of=[
+        ProxyFilters(country="AR", source="latam"),
+        ProxyFilters(all_of=[ProxyFilters(country="BR"), ProxyFilters(source="andina")]),
+    ],
+    none_of=[ProxyFilters(city="blocked")],
+    predicate=lambda proxy: proxy.port >= 8000,
+)
+```
+
+Adapters evaluate the tree recursively. Predicates run in Python, so keep them
+lightweight and deterministic; they are best suited for rule-like checks that
+are awkward to express as equality filters.
+
 ## Handling Concurrency Limits
 
 Each `Proxy` can define `max_concurrency`. The storage implementation checks the

@@ -132,6 +132,24 @@ if lease:
     print("Got a proxy close to Buenos Aires!")
 ```
 
+Need to mix logical clauses or add custom checks? Compose filters with
+`any_of`/`all_of`/`none_of` and an optional predicate:
+
+```python
+from pharox import ProxyFilters
+
+filters = ProxyFilters(
+    any_of=[
+        ProxyFilters(country="AR"),
+        ProxyFilters(all_of=[ProxyFilters(source="andina"), ProxyFilters(country="BR")]),
+    ],
+    none_of=[ProxyFilters(city="forbidden")],
+    predicate=lambda proxy: proxy.port >= 8000,
+)
+```
+
+The predicate runs in Python against each candidate `Proxy`, so keep it fast.
+
 ### Health Checks Across Protocols
 
 Use `HealthChecker` to verify connectivity through HTTP, HTTPS, or SOCKS proxies.
