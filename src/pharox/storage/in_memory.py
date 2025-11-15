@@ -1,7 +1,7 @@
 import threading
 from datetime import datetime, timedelta, timezone
 from math import asin, cos, isclose, radians, sin, sqrt
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
 from ..models import (
@@ -14,6 +14,7 @@ from ..models import (
     ProxyFilters,
     ProxyPool,
     ProxyStatus,
+    SelectorStrategy,
 )
 from .interface import IStorage
 
@@ -50,6 +51,12 @@ class _InMemoryPool:
 
     def find_available_proxy(self, filters: Optional[ProxyFilters]) -> Optional[Proxy]:
         """Find the first available proxy in this pool that matches filters."""
+        available = self.available_proxies(filters)
+        return available[0] if available else None
+
+    def available_proxies(self, filters: Optional[ProxyFilters]) -> List[Proxy]:
+        """Return all available proxies in this pool for the given filters."""
+        results: List[Proxy] = []
         for proxy in self.proxies.values():
             if proxy.status != ProxyStatus.ACTIVE:
                 continue
@@ -60,8 +67,8 @@ class _InMemoryPool:
             if not is_available:
                 continue
             if self._proxy_matches_filters(proxy, filters):
-                return proxy
-        return None
+                results.append(proxy)
+        return results
 
     def _proxy_matches_filters(
         self, proxy: Proxy, filters: Optional[ProxyFilters]
@@ -117,6 +124,7 @@ class InMemoryStorage(IStorage):
         self._pool_name_to_id: Dict[str, UUID] = {}
         self._consumer_name_to_id: Dict[str, UUID] = {}
         self._proxy_id_to_pool_id: Dict[UUID, UUID] = {}
+        self._round_robin_cursors: Dict[UUID, int] = {}
 
     def add_pool(self, pool: ProxyPool):
         """Add a proxy pool to the storage for testing.
@@ -189,7 +197,10 @@ class InMemoryStorage(IStorage):
         return None
 
     def find_available_proxy(
-        self, pool_name: str, filters: Optional[ProxyFilters] = None
+        self,
+        pool_name: str,
+        filters: Optional[ProxyFilters] = None,
+        selector: Optional[SelectorStrategy] = None,
     ) -> Optional[Proxy]:
         """Find an available proxy from a named pool that meets the criteria."""
         with self._lock:
@@ -201,10 +212,46 @@ class InMemoryStorage(IStorage):
             if not pool:
                 return None
 
-            proxy_found = pool.find_available_proxy(filters)
+            available = pool.available_proxies(filters)
+            if not available:
+                return None
+
+            strategy = selector or SelectorStrategy.FIRST_AVAILABLE
+            proxy_found = self._apply_selector(pool_id, available, strategy)
             if proxy_found:
                 return proxy_found.model_copy(deep=True)
         return None
+
+    def _apply_selector(
+        self,
+        pool_id: UUID,
+        available: List[Proxy],
+        strategy: SelectorStrategy,
+    ) -> Optional[Proxy]:
+        if not available:
+            return None
+        if strategy == SelectorStrategy.LEAST_USED:
+            return min(
+                available,
+                key=lambda proxy: (
+                    proxy.current_leases,
+                    proxy.checked_at,
+                    proxy.id,
+                ),
+            )
+        if strategy == SelectorStrategy.ROUND_ROBIN:
+            return self._select_round_robin(pool_id, available)
+        return available[0]
+
+    def _select_round_robin(
+        self, pool_id: UUID, available: List[Proxy]
+    ) -> Proxy:
+        ordered = sorted(available, key=lambda proxy: proxy.id)
+        total = len(ordered)
+        cursor = self._round_robin_cursors.get(pool_id, 0) % total
+        proxy = ordered[cursor]
+        self._round_robin_cursors[pool_id] = (cursor + 1) % total
+        return proxy
 
     def create_lease(
         self, proxy: Proxy, consumer_name: str, duration_seconds: int

@@ -10,6 +10,7 @@ from ..models import (
     PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
+    SelectorStrategy,
 )
 
 
@@ -18,7 +19,10 @@ class IStorage(ABC):
 
     @abstractmethod
     def find_available_proxy(
-        self, pool_name: str, filters: Optional[ProxyFilters] = None
+        self,
+        pool_name: str,
+        filters: Optional[ProxyFilters] = None,
+        selector: Optional[SelectorStrategy] = None,
     ) -> Optional[Proxy]:
         """
         Find an available proxy from a named pool that meets the criteria.
@@ -27,6 +31,7 @@ class IStorage(ABC):
         ----
             pool_name: The unique name of the pool to search in.
             filters: Optional criteria to filter proxies by.
+            selector: Strategy hint for how to pick between available proxies.
 
         Returns
         -------

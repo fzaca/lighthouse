@@ -1,3 +1,10 @@
+## 0.5.0 (Unreleased)
+
+### Feat
+
+- add selector strategies for proxy acquisition (least-used, round-robin)
+- persist selector cursors for the Postgres adapter and docs
+
 ## 0.4.0 (2025-11-08)
 
 ### Feat

@@ -21,6 +21,7 @@ from .models import (
     ProxyPool,
     ProxyProtocol,
     ProxyStatus,
+    SelectorStrategy,
     ReleaseEventPayload,
 )
 from .storage import InMemoryStorage, IStorage
@@ -48,6 +49,7 @@ __all__ = [
     "ProxyProtocol",
     "ProxyStatus",
     "PoolStatsSnapshot",
+    "SelectorStrategy",
     "AcquireEventPayload",
     "ReleaseEventPayload",
     "acquire_proxy_async",

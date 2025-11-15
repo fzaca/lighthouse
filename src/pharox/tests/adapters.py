@@ -17,6 +17,7 @@ from ..models import (
     ProxyPool,
     ProxyProtocol,
     ProxyStatus,
+    SelectorStrategy,
 )
 from ..storage import IStorage
 
@@ -80,6 +81,8 @@ class _StorageContractSuite:
         self._finds_active_proxy()
         self._filters_proxies()
         self._enforces_concurrency_limits()
+        self._least_used_selector_prefers_lowest_load()
+        self._round_robin_selector_cycles()
         self._lease_release_cycle()
         self._cleans_up_expired_leases()
         self._applies_health_results()
@@ -136,6 +139,45 @@ class _StorageContractSuite:
             assert (
                 second is None
             ), "Proxy with depleted concurrency should not be returned"
+
+    def _least_used_selector_prefers_lowest_load(self) -> None:
+        with self._storage() as storage:
+            pool = self._make_pool(storage, "least-used")
+            idle = self._make_proxy(storage, pool, max_concurrency=5)
+            busy = self._make_proxy(storage, pool, max_concurrency=5)
+            consumers = [self._consumer_name() for _ in range(2)]
+            for consumer in consumers:
+                storage.ensure_consumer(consumer)
+                lease = storage.create_lease(busy, consumer, duration_seconds=60)
+                assert lease is not None
+
+            candidate = storage.find_available_proxy(
+                pool.name, selector=SelectorStrategy.LEAST_USED
+            )
+            assert candidate is not None
+            assert (
+                candidate.id == idle.id
+            ), "Least-used selector should prioritize lowest load"
+
+    def _round_robin_selector_cycles(self) -> None:
+        with self._storage() as storage:
+            pool = self._make_pool(storage, "round-robin")
+            proxies = [
+                self._make_proxy(storage, pool, host=f"10.0.0.{i}")
+                for i in range(1, 4)
+            ]
+
+            expected_order = [proxy.id for proxy in sorted(proxies, key=lambda p: p.id)]
+            sequence = []
+            for _ in range(5):
+                candidate = storage.find_available_proxy(
+                    pool.name, selector=SelectorStrategy.ROUND_ROBIN
+                )
+                assert candidate is not None
+                sequence.append(candidate.id)
+
+            assert sequence[:3] == expected_order
+            assert sequence[3] == expected_order[0]
 
     def _lease_release_cycle(self) -> None:
         with self._storage() as storage:

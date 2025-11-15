@@ -32,6 +32,7 @@ from pharox import (
     ProxyManager,
     ProxyProtocol,
     ProxyStatus,
+    SelectorStrategy,
     bootstrap_pool,
     bootstrap_proxy,
 )
@@ -63,10 +64,14 @@ seed_proxy = bootstrap_proxy(
 Lease a proxy from the pool. Prefer `ProxyManager.with_lease`—the context
 manager guarantees cleanup even if the work inside the block raises an
 exception, and it accepts the same options as `acquire_proxy` (consumer name,
-filters, custom durations).
+filters, custom durations, selector hints).
 
 ```python
-with manager.with_lease(pool_name=pool.name, duration_seconds=60) as lease:
+with manager.with_lease(
+    pool_name=pool.name,
+    duration_seconds=60,
+    selector=SelectorStrategy.FIRST_AVAILABLE,
+) as lease:
     if not lease:
         raise RuntimeError("No proxy available")
 
@@ -97,6 +102,7 @@ def on_acquire(event: AcquireEventPayload):
     tags = {
         "pool": event.pool_name,
         "consumer": event.consumer_name,
+        "selector": event.selector.value,
         "status": "hit" if event.lease else "miss",
     }
     duration = event.duration_ms or 0
@@ -134,7 +140,28 @@ if lease:
     manager.release_proxy(lease)
 ```
 
-## 7. Run a Health Check
+## 7. Choose a Selector (Optional)
+
+Different workloads benefit from different proxy ordering. Use
+`SelectorStrategy` to pick a strategy per acquisition:
+
+```python
+from pharox import SelectorStrategy
+
+lease = manager.acquire_proxy(
+    pool_name=pool.name,
+    consumer_name="worker-1",
+    selector=SelectorStrategy.LEAST_USED,
+)
+```
+
+The in-memory and PostgreSQL adapters support:
+
+- `FIRST_AVAILABLE` (default): deterministic first-fit.
+- `LEAST_USED`: prioritises proxies with fewer active leases.
+- `ROUND_ROBIN`: cycles through the pool fairly using storage-backed cursors.
+
+## 8. Run a Health Check
 
 Verify the proxy before using it in production. The health module classifies
 results consistently across all Pharox integrations.

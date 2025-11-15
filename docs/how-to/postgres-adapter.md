@@ -65,6 +65,16 @@ CREATE TABLE lease (
     expires_at TIMESTAMPTZ NOT NULL,
     released_at TIMESTAMPTZ
 );
+
+-- Tracks round-robin cursors per pool/strategy.
+CREATE TABLE pool_selector_state (
+    pool_id UUID NOT NULL REFERENCES proxy_pool(id) ON DELETE CASCADE,
+    strategy VARCHAR(32) NOT NULL,
+    last_proxy_id UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (pool_id, strategy)
+);
 ```
 
 Add indexes that match your filter workloads (e.g., `proxy(pool_id, status)`,
@@ -217,6 +227,12 @@ class PostgresStorage(IStorage):
         ).m.fetchone()
         return Proxy.model_validate(refreshed) if refreshed else None
 ```
+
+!!! note "Selector strategies"
+    The reference adapter extends `find_available_proxy` with an optional
+    `SelectorStrategy` parameter and stores round-robin cursors in the
+    `pool_selector_state` table. Copy that behaviour if you need deterministic
+    load-balancing across workers.
 
 The full implementation should guard against race conditions (e.g., using
 `FOR UPDATE` locks) and handle geospatial filters. Start simple, then iterate

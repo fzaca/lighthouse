@@ -7,6 +7,7 @@ from .models import (
     Lease,
     ProxyFilters,
     ReleaseEventPayload,
+    SelectorStrategy,
 )
 from .storage import IStorage
 
@@ -38,6 +39,7 @@ class ProxyManager:
         consumer_name: Optional[str] = None,
         duration_seconds: int = 300,
         filters: Optional[ProxyFilters] = None,
+        selector: Optional[SelectorStrategy] = None,
     ) -> Optional[Lease]:
         """
         Acquire a proxy from a named pool.
@@ -72,7 +74,10 @@ class ProxyManager:
 
         self._storage.cleanup_expired_leases()
 
-        proxy = self._storage.find_available_proxy(pool_name, filters)
+        strategy = selector or SelectorStrategy.FIRST_AVAILABLE
+        proxy = self._storage.find_available_proxy(
+            pool_name, filters, strategy
+        )
         lease: Optional[Lease] = None
         if proxy:
             lease = self._storage.create_lease(
@@ -86,6 +91,7 @@ class ProxyManager:
                 pool_name=pool_name,
                 consumer_name=effective_consumer_name,
                 filters=filters,
+                selector=strategy,
                 started_at=started_at,
                 completed_at=completed_at,
                 duration_ms=max(
@@ -143,6 +149,7 @@ class ProxyManager:
         consumer_name: Optional[str] = None,
         duration_seconds: int = 300,
         filters: Optional[ProxyFilters] = None,
+        selector: Optional[SelectorStrategy] = None,
     ) -> Iterator[Optional[Lease]]:
         """
         Context manager that acquires a lease and releases it automatically.
@@ -157,6 +164,7 @@ class ProxyManager:
             consumer_name=consumer_name,
             duration_seconds=duration_seconds,
             filters=filters,
+            selector=selector,
         )
         try:
             yield lease

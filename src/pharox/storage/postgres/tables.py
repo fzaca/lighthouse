@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     MetaData,
+    PrimaryKeyConstraint,
     String,
     Table,
     Text,
@@ -138,4 +139,30 @@ lease_table = Table(
     ),
     Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("released_at", DateTime(timezone=True)),
+)
+
+selector_state_table = Table(
+    "pool_selector_state",
+    metadata,
+    Column(
+        "pool_id",
+        UUID(as_uuid=True),
+        ForeignKey("proxy_pool.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("strategy", String(32), nullable=False),
+    Column("last_proxy_id", UUID(as_uuid=True)),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    PrimaryKeyConstraint("pool_id", "strategy", name="pk_pool_selector_state"),
 )

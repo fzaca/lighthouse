@@ -41,6 +41,7 @@ def _make_storage() -> PostgresStorage:
                     lease,
                     proxy,
                     consumer,
+                    pool_selector_state,
                     proxy_pool
                 RESTART IDENTITY CASCADE
                 """

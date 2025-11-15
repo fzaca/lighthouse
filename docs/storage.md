@@ -53,7 +53,7 @@ Characteristics:
 
 Custom adapters live in your service or SDK codebase. They must implement:
 
-- `find_available_proxy(pool_name, filters)`
+- `find_available_proxy(pool_name, filters, selector)`
 - `create_lease(proxy, consumer_name, duration_seconds)`
 - `ensure_consumer(consumer_name)`
 - `release_lease(lease)`
@@ -66,7 +66,8 @@ Typical responsibilities include:
 2. Enforcing `max_concurrency` when creating leases.
 3. Persisting lease state changes and adjusting `current_leases` counters.
 4. Computing pool snapshots for callbacks/telemetry (`PoolStatsSnapshot`).
-5. Returning defensive copies of models so callers cannot mutate shared state.
+5. Honouring selector hints, or clearly documenting unsupported strategies.
+6. Returning defensive copies of models so callers cannot mutate shared state.
 
 You can extend the models with extra fields (e.g., `tags`, `datacenter`) as long
 as they round-trip through the adapter and the additional metadata remains
@@ -113,10 +114,17 @@ poetry install --extras postgres
 docker compose -f examples/postgres/docker-compose.yml up -d
 psql postgresql://pharox:pharox@localhost:5439/pharox \
     -f examples/postgres/migrations/0001_init.sql
+psql postgresql://pharox:pharox@localhost:5439/pharox \
+    -f examples/postgres/migrations/0002_selector_state.sql
+psql postgresql://pharox:pharox@localhost:5439/pharox \
+    -f examples/postgres/migrations/0002_selector_state.sql
 ```
 
 Use the SQL migrations as a starting point, then migrate them into your own
-Alembic/Flyway changelog before production.
+Alembic/Flyway changelog before production. Migration `0002_selector_state.sql`
+adds the `pool_selector_state` table that keeps round-robin cursors in sync
+across workers—include it (or an equivalent structure) whenever you support
+selector strategies.
 
 ### 3. Instantiate the adapter
 

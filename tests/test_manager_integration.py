@@ -12,6 +12,7 @@ from pharox.models import (
     ProxyProtocol,
     ProxyStatus,
     ReleaseEventPayload,
+    SelectorStrategy,
 )
 from pharox.storage.in_memory import InMemoryStorage
 from pharox.utils.bootstrap import (
@@ -266,6 +267,7 @@ def test_acquire_callbacks_are_invoked(
     assert payload.duration_ms >= 0
     assert payload.pool_stats is not None
     assert payload.pool_stats.pool_name == test_pool_name
+    assert payload.selector == SelectorStrategy.FIRST_AVAILABLE
 
 
 def test_acquire_callback_runs_on_miss(
@@ -289,6 +291,87 @@ def test_acquire_callback_runs_on_miss(
     assert payload.consumer_name == ProxyManager.DEFAULT_CONSUMER_NAME
     assert payload.filters is None
     assert payload.pool_stats is None
+    assert payload.selector == SelectorStrategy.FIRST_AVAILABLE
+
+
+def test_least_used_selector_routes_lowest_load(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+):
+    """Least-used selector should favor the proxy with fewer active leases."""
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    idle = bootstrap_proxy(
+        storage,
+        pool=pool,
+        host="20.20.20.20",
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=3,
+    )
+    busy = bootstrap_proxy(
+        storage,
+        pool=pool,
+        host="20.20.20.21",
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
+        status=ProxyStatus.ACTIVE,
+        max_concurrency=3,
+    )
+
+    second_consumer = "secondary-consumer"
+    storage.ensure_consumer(test_consumer_name)
+    storage.ensure_consumer(second_consumer)
+    storage.create_lease(busy, test_consumer_name, duration_seconds=60)
+    storage.create_lease(busy, second_consumer, duration_seconds=60)
+
+    lease = manager.acquire_proxy(
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        selector=SelectorStrategy.LEAST_USED,
+    )
+    assert lease is not None
+    assert lease.proxy_id == idle.id
+
+
+def test_round_robin_selector_cycles_proxies(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+):
+    """Round-robin selector should rotate proxies deterministically."""
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    proxies = [
+        bootstrap_proxy(
+            storage,
+            pool=pool,
+            host=f"30.30.30.{idx}",
+            port=8080,
+            protocol=ProxyProtocol.HTTP,
+            status=ProxyStatus.ACTIVE,
+        )
+        for idx in range(1, 4)
+    ]
+    expected_order = [proxy.id for proxy in sorted(proxies, key=lambda p: p.id)]
+
+    seen: list = []
+    for _ in range(len(expected_order) + 1):
+        lease = manager.acquire_proxy(
+            pool_name=test_pool_name,
+            consumer_name=test_consumer_name,
+            selector=SelectorStrategy.ROUND_ROBIN,
+        )
+        assert lease is not None
+        seen.append(lease.proxy_id)
+        manager.release_proxy(lease)
+
+    assert seen[: len(expected_order)] == expected_order
+    assert seen[-1] == expected_order[0]
 
 
 def test_release_callbacks_are_invoked(

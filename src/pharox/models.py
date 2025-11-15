@@ -39,6 +39,14 @@ class ProxyProtocol(str, Enum):
     SOCKS5 = "socks5"
 
 
+class SelectorStrategy(str, Enum):
+    """Strategies that storage adapters can use to pick the next proxy."""
+
+    FIRST_AVAILABLE = "first_available"
+    LEAST_USED = "least_used"
+    ROUND_ROBIN = "round_robin"
+
+
 class Proxy(BaseModel):
     """Represents a network proxy."""
 
@@ -219,6 +227,7 @@ class AcquireEventPayload(BaseModel):
     pool_name: str
     consumer_name: str
     filters: Optional[ProxyFilters] = None
+    selector: SelectorStrategy = SelectorStrategy.FIRST_AVAILABLE
     started_at: datetime
     completed_at: datetime
     duration_ms: int = Field(ge=0)

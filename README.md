@@ -195,6 +195,8 @@ and leases without building storage plumbing from scratch.
    docker compose -f examples/postgres/docker-compose.yml up -d
    psql postgresql://pharox:pharox@localhost:5439/pharox \
        -f examples/postgres/migrations/0001_init.sql
+   psql postgresql://pharox:pharox@localhost:5439/pharox \
+       -f examples/postgres/migrations/0002_selector_state.sql
    ```
 
 3. **Use the adapter in code**
@@ -203,11 +205,19 @@ and leases without building storage plumbing from scratch.
    from sqlalchemy import create_engine
 
    from pharox.manager import ProxyManager
+   from pharox import SelectorStrategy
    from pharox.storage.postgres import PostgresStorage
 
    engine = create_engine("postgresql+psycopg://pharox:pharox@localhost:5439/pharox")
    storage = PostgresStorage(engine=engine)
    manager = ProxyManager(storage=storage)
+   lease = manager.acquire_proxy(
+       pool_name="latam-residential",
+       consumer_name="worker-1",
+       selector=SelectorStrategy.LEAST_USED,
+   )
+   if lease:
+       print("Got proxy", lease.proxy_id)
    ```
 
 4. **Run the storage contract suite (optional)**

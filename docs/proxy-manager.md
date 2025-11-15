@@ -7,7 +7,7 @@ keep track of pools, proxies, consumers, and leases.
 ## Creating a Manager
 
 ```python
-from pharox import InMemoryStorage, ProxyManager
+from pharox import InMemoryStorage, ProxyManager, SelectorStrategy
 
 storage = InMemoryStorage()
 manager = ProxyManager(storage)
@@ -24,6 +24,7 @@ lease = manager.acquire_proxy(
     pool_name="latam-residential",
     consumer_name="worker-1",
     duration_seconds=300,
+    selector=SelectorStrategy.LEAST_USED,
 )
 
 if lease:
@@ -41,6 +42,8 @@ Key points:
   responsible for releasing expired leases.
 - The manager automatically calls `cleanup_expired_leases()` before trying to
   allocate a proxy, so stale leases do not block new requests.
+- Set `selector` to a `SelectorStrategy` value when you need least-used or
+  round-robin behaviour; otherwise it defaults to first-available.
 
 ## Releasing a Proxy
 
@@ -52,6 +55,22 @@ if lease:
 Leases should be released as soon as the caller finishes using the proxy. The
 storage layer decrements `current_leases` and updates the lease status.
 
+## Using Selector Strategies
+
+Pharox exposes multiple selection strategies so you can choose how proxies are
+distributed within a pool:
+
+- `SelectorStrategy.FIRST_AVAILABLE` (default) returns the most recently checked
+  proxy that is still available.
+- `SelectorStrategy.LEAST_USED` prioritises the proxy with the fewest active
+  leases, which balances load across large pools.
+- `SelectorStrategy.ROUND_ROBIN` cycles through proxies in a deterministic
+  order. The state lives in the storage backend so multiple workers share
+  proxies fairly.
+
+Pass the desired strategy to `manager.acquire_proxy`, `with_lease`, or the async
+helpers whenever you need behaviour other than first-fit.
+
 ## Using the `with_lease` Context Manager
 
 To avoid manual `try/finally` blocks, `ProxyManager` exposes a context manager
@@ -62,6 +81,7 @@ with manager.with_lease(
     pool_name="latam-residential",
     consumer_name="worker-1",
     duration_seconds=120,
+    selector=SelectorStrategy.ROUND_ROBIN,
 ) as lease:
     if not lease:
         raise RuntimeError("No proxy available")
@@ -181,6 +201,7 @@ def on_acquire(event: AcquireEventPayload):
     print(
         f"{event.consumer_name} {outcome} from {event.pool_name} "
         f"in {duration} ms — stats: {stats}"
+        f" (selector={event.selector.value})"
     )
 
 

@@ -31,6 +31,7 @@ def acquire_proxy(
     consumer_name: str | None = None,
     duration_seconds: int = 300,
     filters: ProxyFilters | None = None,
+    selector: SelectorStrategy | None = None,
 ) -> Lease | None
 ```
 
@@ -40,6 +41,8 @@ def acquire_proxy(
 - Calls `storage.cleanup_expired_leases()` before searching for a proxy.
 - Uses `storage.find_available_proxy` + `storage.create_lease`.
 - Returns `None` when no eligible proxy exists.
+- Accepts an optional `selector` hint (`SelectorStrategy`) to influence the order
+  in which adapters return proxies. Defaults to first-available if omitted.
 
 ### `release_proxy`
 
@@ -68,11 +71,27 @@ def with_lease(
     consumer_name: str | None = None,
     duration_seconds: int = 300,
     filters: ProxyFilters | None = None,
+    selector: SelectorStrategy | None = None,
 ) -> Iterator[Lease | None]
 ```
 
 - Wraps `acquire_proxy` and guarantees `release_proxy` in a `finally` block.
 - Yields `None` when acquisition fails so callers can retry gracefully.
+
+### Selector Strategies
+
+`SelectorStrategy` enumerates the available selection behaviours:
+
+- `FIRST_AVAILABLE` (default): deterministic first-fit ordered by `checked_at`
+  descending, then `proxy.id`.
+- `LEAST_USED`: prioritises proxies with the fewest active leases, tying by
+  `checked_at` and `proxy.id`.
+- `ROUND_ROBIN`: cycles through the pool in a deterministic order backed by
+  storage so concurrent workers share proxies fairly.
+
+All adapters must support `FIRST_AVAILABLE`; reference adapters (in-memory and
+PostgreSQL) also implement the other strategies. Custom adapters can choose to
+ignore optional strategies, but should document the behaviour for callers.
 
 ## Callback Registration
 
@@ -87,8 +106,9 @@ manager.register_release_callback(Callable[[ReleaseEventPayload], None])
 ```
 
 - `AcquireEventPayload` includes the resulting `Lease` (or `None`), the pool and
-  consumer names, resolved filters, `started_at` / `completed_at` timestamps, the
-  execution duration in milliseconds, and a `PoolStatsSnapshot`.
+  consumer names, resolved filters, the selected `SelectorStrategy`,
+  `started_at` / `completed_at` timestamps, the execution duration in
+  milliseconds, and a `PoolStatsSnapshot`.
 - `ReleaseEventPayload` contains the released `Lease`, `released_at`, computed
   lease duration, and the same pool stats snapshot captured after the release.
 - Callbacks run synchronously; keep them lightweight or hand off to background

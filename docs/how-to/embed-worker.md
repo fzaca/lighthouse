@@ -23,6 +23,7 @@ from pharox import (
     InMemoryStorage,
     ProxyManager,
     ReleaseEventPayload,
+    SelectorStrategy,
 )
 
 logger = logging.getLogger("pharox.worker")
@@ -39,6 +40,7 @@ def on_acquire(event: AcquireEventPayload):
             "consumer": event.consumer_name,
             "outcome": outcome,
             "duration_ms": event.duration_ms,
+            "selector": event.selector.value,
             "filters": event.filters.model_dump() if event.filters else None,
             "available": event.pool_stats.available_proxies
             if event.pool_stats
@@ -73,7 +75,11 @@ allowing you to requeue or back off gracefully.
 
 ```python
 def process_account(account_id: str) -> None:
-    with manager.with_lease(pool_name="residential", consumer_name="worker") as lease:
+    with manager.with_lease(
+        pool_name="residential",
+        consumer_name="worker",
+        selector=SelectorStrategy.ROUND_ROBIN,
+    ) as lease:
         if not lease:
             logger.warning("No proxy available; retrying account %s", account_id)
             raise RuntimeError("proxy unavailable")

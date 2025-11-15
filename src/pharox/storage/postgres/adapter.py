@@ -28,10 +28,17 @@ from pharox.models import (
     Proxy,
     ProxyFilters,
     ProxyStatus,
+    SelectorStrategy,
 )
 from pharox.storage import IStorage
 
-from .tables import consumer_table, lease_table, pool_table, proxy_table
+from .tables import (
+    consumer_table,
+    lease_table,
+    pool_table,
+    proxy_table,
+    selector_state_table,
+)
 
 EARTH_RADIUS_KM = 6371.0
 
@@ -43,15 +50,28 @@ class PostgresStorage(IStorage):
         self._engine = engine
 
     def find_available_proxy(
-        self, pool_name: str, filters: Optional[ProxyFilters] = None
+        self,
+        pool_name: str,
+        filters: Optional[ProxyFilters] = None,
+        selector: Optional[SelectorStrategy] = None,
     ) -> Optional[Proxy]:
         """Return the next proxy that matches the filters for the given pool."""
         with self._engine.begin() as conn:
-            stmt = (
+            pool_row = (
+                conn.execute(
+                    select(pool_table.c.id).where(pool_table.c.name == pool_name)
+                )
+                .mappings()
+                .first()
+            )
+            if not pool_row:
+                return None
+            pool_id = pool_row["id"]
+
+            availability = (
                 select(proxy_table)
-                .join(pool_table, proxy_table.c.pool_id == pool_table.c.id)
                 .where(
-                    pool_table.c.name == pool_name,
+                    proxy_table.c.pool_id == pool_id,
                     proxy_table.c.status == ProxyStatus.ACTIVE.value,
                     or_(
                         proxy_table.c.max_concurrency.is_(None),
@@ -59,12 +79,10 @@ class PostgresStorage(IStorage):
                         < proxy_table.c.max_concurrency,
                     ),
                 )
-                .order_by(proxy_table.c.checked_at.desc(), proxy_table.c.id.asc())
-                .limit(1)
-                .with_for_update(skip_locked=True)
             )
-            stmt = self._apply_filters(stmt, filters)
-            row = conn.execute(stmt).mappings().first()
+            availability = self._apply_filters(availability, filters)
+            strategy = selector or SelectorStrategy.FIRST_AVAILABLE
+            row = self._run_selector(conn, pool_id, availability, strategy)
             return Proxy.model_validate(dict(row)) if row else None
 
     def create_lease(
@@ -294,6 +312,132 @@ class PostgresStorage(IStorage):
                 leased_proxies=int(aggregates["leased_proxies"] or 0),
                 total_leases=int(aggregates["total_leases"] or 0),
             )
+
+    def _run_selector(
+        self,
+        conn: Connection,
+        pool_id: UUID,
+        availability: Select,
+        strategy: SelectorStrategy,
+    ):
+        base_stmt = availability
+        if strategy == SelectorStrategy.LEAST_USED:
+            stmt = base_stmt.order_by(
+                proxy_table.c.current_leases.asc(),
+                proxy_table.c.checked_at.asc(),
+                proxy_table.c.id.asc(),
+            )
+            return (
+                conn.execute(
+                    stmt.limit(1).with_for_update(skip_locked=True)
+                ).mappings().first()
+            )
+        if strategy == SelectorStrategy.ROUND_ROBIN:
+            return self._select_round_robin(conn, pool_id, base_stmt)
+
+        stmt = base_stmt.order_by(
+            proxy_table.c.checked_at.desc(),
+            proxy_table.c.id.asc(),
+        )
+        return (
+            conn.execute(
+                stmt.limit(1).with_for_update(skip_locked=True)
+            ).mappings().first()
+        )
+
+    def _select_round_robin(
+        self, conn: Connection, pool_id: UUID, availability: Select
+    ):
+        last_proxy_id = self._get_selector_last_id(
+            conn, pool_id, SelectorStrategy.ROUND_ROBIN
+        )
+        orderings = []
+        if last_proxy_id:
+            orderings.append(
+                case(
+                    (proxy_table.c.id > literal(last_proxy_id), 0),
+                    else_=1,
+                )
+            )
+        orderings.append(proxy_table.c.id.asc())
+        stmt = availability.order_by(*orderings)
+        row = (
+            conn.execute(
+                stmt.limit(1).with_for_update(skip_locked=True)
+            ).mappings().first()
+        )
+        if not row:
+            return None
+        self._set_selector_last_id(
+            conn,
+            pool_id,
+            SelectorStrategy.ROUND_ROBIN,
+            row["id"],
+        )
+        return row
+
+    def _get_selector_last_id(
+        self,
+        conn: Connection,
+        pool_id: UUID,
+        strategy: SelectorStrategy,
+    ):
+        row = (
+            conn.execute(
+                select(selector_state_table.c.last_proxy_id)
+                .where(
+                    selector_state_table.c.pool_id == pool_id,
+                    selector_state_table.c.strategy == strategy.value,
+                )
+                .with_for_update(skip_locked=True)
+            )
+            .mappings()
+            .first()
+        )
+        if row is not None:
+            return row["last_proxy_id"]
+
+        conn.execute(
+            insert(selector_state_table)
+            .values(
+                pool_id=pool_id,
+                strategy=strategy.value,
+                last_proxy_id=None,
+            )
+            .on_conflict_do_nothing(
+                index_elements=[
+                    selector_state_table.c.pool_id,
+                    selector_state_table.c.strategy,
+                ]
+            )
+        )
+        return None
+
+    def _set_selector_last_id(
+        self,
+        conn: Connection,
+        pool_id: UUID,
+        strategy: SelectorStrategy,
+        proxy_id: UUID,
+    ) -> None:
+        conn.execute(
+            insert(selector_state_table)
+            .values(
+                pool_id=pool_id,
+                strategy=strategy.value,
+                last_proxy_id=proxy_id,
+            )
+            .on_conflict_do_update(
+                index_elements=[
+                    selector_state_table.c.pool_id,
+                    selector_state_table.c.strategy,
+                ],
+                set_={
+                    "last_proxy_id": proxy_id,
+                    "updated_at": func.now(),
+                },
+            )
+        )
 
     def _apply_filters(self, stmt: Select, filters: Optional[ProxyFilters]) -> Select:
         if not filters:

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator, Optional
 
 from .manager import ProxyManager
-from .models import Lease, ProxyFilters
+from .models import Lease, ProxyFilters, SelectorStrategy
 
 
 async def acquire_proxy_async(
@@ -12,6 +12,7 @@ async def acquire_proxy_async(
     consumer_name: Optional[str] = None,
     duration_seconds: int = 300,
     filters: Optional[ProxyFilters] = None,
+    selector: Optional[SelectorStrategy] = None,
 ) -> Optional[Lease]:
     """
     Acquire a proxy without blocking the event loop.
@@ -24,6 +25,7 @@ async def acquire_proxy_async(
         consumer_name,
         duration_seconds,
         filters,
+        selector,
     )
 
 
@@ -43,6 +45,7 @@ async def with_lease_async(
     consumer_name: Optional[str] = None,
     duration_seconds: int = 300,
     filters: Optional[ProxyFilters] = None,
+    selector: Optional[SelectorStrategy] = None,
 ) -> AsyncIterator[Optional[Lease]]:
     """
     Async-compatible context manager mirroring ``ProxyManager.with_lease``.
@@ -56,6 +59,7 @@ async def with_lease_async(
         consumer_name=consumer_name,
         duration_seconds=duration_seconds,
         filters=filters,
+        selector=selector,
     )
     try:
         yield lease

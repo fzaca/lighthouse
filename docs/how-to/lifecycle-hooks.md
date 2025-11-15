@@ -19,6 +19,7 @@ Callbacks receive Pydantic models that are already validated and timezone-aware:
 | `pool_name` | `str` | `str \| None` | Release events carry the name stored on the lease. |
 | `consumer_name` | `str` | — | Helps group metrics per worker/tenant. |
 | `filters` | `ProxyFilters \| None` | — | Reuse filters inside logs to debug misconfigured selectors. |
+| `selector` | `SelectorStrategy` | — | Strategy used when picking the proxy (first-available, least-used, round-robin). |
 | `duration_ms` | `int` | — | How long the acquisition attempt took (including cleanup + storage calls). |
 | `lease_duration_ms` | — | `int \| None` | Milliseconds between `acquired_at` and `released_at`. |
 | `pool_stats` | `PoolStatsSnapshot \| None` | `PoolStatsSnapshot \| None` | Snapshot collected after the operation: totals, available proxies, leases in-flight. |
@@ -63,6 +64,7 @@ def on_acquire(event: AcquireEventPayload) -> None:
     tags = {
         "pool": event.pool_name,
         "consumer": event.consumer_name,
+        "selector": event.selector.value,
         "status": "hit" if event.lease else "miss",
     }
     metrics.timing("pharox.acquire.duration_ms", event.duration_ms, tags)
@@ -86,6 +88,8 @@ Recommended metrics:
 - Miss rate (lease is `None`).
 - Pool availability gauge (`available_proxies`, `active_proxies`, `total_leases`).
 - Lease duration timers to detect stuck workloads.
+- Per-selector breakdowns to verify that least-used and round-robin strategies
+  distribute load as expected.
 
 ## 4. Log Structured Events
 
@@ -100,9 +104,10 @@ def on_acquire(event: AcquireEventPayload) -> None:
             "pool": event.pool_name,
             "consumer": event.consumer_name,
             "duration_ms": event.duration_ms,
-            "filters": event.filters.model_dump() if event.filters else None,
-            "lease_id": event.lease.id if event.lease else None,
-            "available": event.pool_stats.available_proxies
+        "filters": event.filters.model_dump() if event.filters else None,
+        "lease_id": event.lease.id if event.lease else None,
+        "selector": event.selector.value,
+        "available": event.pool_stats.available_proxies
             if event.pool_stats
             else None,
         },
