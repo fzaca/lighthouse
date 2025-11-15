@@ -94,6 +94,30 @@ If acquisition fails, the context yields `None` so your code can decide whether
 to retry or fall back to another pool. When a lease is returned, the manager
 releases it even if exceptions occur inside the `with` block.
 
+### Retrying Acquisition with Backoff
+
+Bursting workloads often need to wait for capacity. Use
+`ProxyManager.acquire_proxy_with_retry` (or the
+`manager.with_retrying_lease` context manager) to add bounded backoff:
+
+```python
+lease = manager.acquire_proxy_with_retry(
+    pool_name="latam-residential",
+    consumer_name="worker-1",
+    max_attempts=5,
+    backoff_seconds=0.25,
+    backoff_multiplier=2.0,
+    max_backoff_seconds=2.0,
+)
+
+if not lease:
+    raise TimeoutError("Pool exhausted after retries")
+```
+
+The helper retries acquisition up to `max_attempts` times, sleeping between
+attempts with exponential backoff. Pass `max_backoff_seconds` to cap the delay,
+or override `sleep_fn` in tests to avoid real waiting.
+
 ### Async Flows
 
 The manager itself is synchronous, but you can still consume it from `async` code
@@ -104,8 +128,10 @@ this exact use case:
 import asyncio
 from pharox import (
     acquire_proxy_async,
+    acquire_proxy_with_retry_async,
     release_proxy_async,
     with_lease_async,
+    with_retrying_lease_async,
 )
 
 async def runner(manager):
@@ -131,7 +157,8 @@ asyncio.run(main(manager))
 
 All three helpers use `asyncio.to_thread` so they remain compatible with any
 existing `IStorage` implementation without introducing a hard dependency on an
-async driver.
+async driver. Need retries from async code? Swap in
+`acquire_proxy_with_retry_async` or `with_retrying_lease_async` for the same API.
 
 ## Filtering Proxies
 

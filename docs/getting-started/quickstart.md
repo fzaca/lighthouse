@@ -87,6 +87,11 @@ Behind the scenes Pharox:
 3. Finds and locks an eligible proxy.
 4. Releases the lease automatically when the context closes.
 
+Need to keep trying until capacity frees up? Replace the snippet with
+`manager.with_retrying_lease(...)` (or call `manager.acquire_proxy_with_retry(...)`).
+Both helpers add bounded exponential backoff before they give up, so you do not
+have to hand-roll retry loops around every acquisition.
+
 ## 5. Emit Metrics via Callbacks
 
 `ProxyManager` can publish acquisition/release events so you can tie into your

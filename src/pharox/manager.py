@@ -1,3 +1,4 @@
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Callable, Iterator, List, Optional
@@ -103,6 +104,74 @@ class ProxyManager:
         )
         return lease
 
+    def acquire_proxy_with_retry(
+        self,
+        pool_name: str,
+        consumer_name: Optional[str] = None,
+        duration_seconds: int = 300,
+        filters: Optional[ProxyFilters] = None,
+        selector: Optional[SelectorStrategy] = None,
+        max_attempts: int = 3,
+        backoff_seconds: float = 0.5,
+        backoff_multiplier: float = 2.0,
+        max_backoff_seconds: Optional[float] = None,
+        sleep_fn: Optional[Callable[[float], None]] = None,
+    ) -> Optional[Lease]:
+        """
+        Acquire a proxy with retry/backoff semantics.
+
+        Parameters
+        ----------
+        max_attempts : int
+            Total attempts before giving up. Must be >= 1.
+        backoff_seconds : float
+            Initial delay (in seconds) before retrying. Set to 0 for immediate retries.
+        backoff_multiplier : float
+            Factor applied to the delay after each attempt. Must be >= 1.
+        max_backoff_seconds : Optional[float]
+            Upper bound for the delay (helpful to prevent unbounded waits).
+        sleep_fn : Optional[Callable[[float], None]]
+            Custom sleep implementation (useful for tests). Defaults to ``time.sleep``.
+        """
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be at least 1.")
+        if backoff_seconds < 0:
+            raise ValueError("backoff_seconds must be non-negative.")
+        if backoff_multiplier < 1:
+            raise ValueError("backoff_multiplier must be at least 1.")
+        if max_backoff_seconds is not None and max_backoff_seconds <= 0:
+            raise ValueError("max_backoff_seconds must be positive when provided.")
+
+        sleep = sleep_fn or time.sleep
+        lease: Optional[Lease] = None
+        attempts = 0
+        delay = backoff_seconds
+
+        while attempts < max_attempts and lease is None:
+            lease = self.acquire_proxy(
+                pool_name=pool_name,
+                consumer_name=consumer_name,
+                duration_seconds=duration_seconds,
+                filters=filters,
+                selector=selector,
+            )
+            attempts += 1
+
+            if lease is not None or attempts >= max_attempts:
+                break
+
+            wait = delay
+            if max_backoff_seconds is not None:
+                wait = min(wait, max_backoff_seconds)
+            if wait > 0:
+                sleep(wait)
+
+            delay *= backoff_multiplier
+            if max_backoff_seconds is not None:
+                delay = min(delay, max_backoff_seconds)
+
+        return lease
+
     def release_proxy(self, lease: Lease) -> None:
         """
         Release a previously acquired proxy lease.
@@ -165,6 +234,43 @@ class ProxyManager:
             duration_seconds=duration_seconds,
             filters=filters,
             selector=selector,
+        )
+        try:
+            yield lease
+        finally:
+            if lease is not None:
+                self.release_proxy(lease)
+
+    @contextmanager
+    def with_retrying_lease(
+        self,
+        pool_name: str,
+        consumer_name: Optional[str] = None,
+        duration_seconds: int = 300,
+        filters: Optional[ProxyFilters] = None,
+        selector: Optional[SelectorStrategy] = None,
+        max_attempts: int = 3,
+        backoff_seconds: float = 0.5,
+        backoff_multiplier: float = 2.0,
+        max_backoff_seconds: Optional[float] = None,
+        sleep_fn: Optional[Callable[[float], None]] = None,
+    ) -> Iterator[Optional[Lease]]:
+        """
+        Context manager that retries acquisitions before yielding.
+
+        Mirrors ``with_lease`` while adding configurable retry/backoff handling.
+        """
+        lease = self.acquire_proxy_with_retry(
+            pool_name=pool_name,
+            consumer_name=consumer_name,
+            duration_seconds=duration_seconds,
+            filters=filters,
+            selector=selector,
+            max_attempts=max_attempts,
+            backoff_seconds=backoff_seconds,
+            backoff_multiplier=backoff_multiplier,
+            max_backoff_seconds=max_backoff_seconds,
+            sleep_fn=sleep_fn,
         )
         try:
             yield lease

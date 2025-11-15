@@ -78,6 +78,41 @@ def with_lease(
 - Wraps `acquire_proxy` and guarantees `release_proxy` in a `finally` block.
 - Yields `None` when acquisition fails so callers can retry gracefully.
 
+- Yields `None` when acquisition fails so callers can retry gracefully.
+
+### `acquire_proxy_with_retry`
+
+```python
+def acquire_proxy_with_retry(
+    pool_name: str,
+    consumer_name: str | None = None,
+    duration_seconds: int = 300,
+    filters: ProxyFilters | None = None,
+    selector: SelectorStrategy | None = None,
+    max_attempts: int = 3,
+    backoff_seconds: float = 0.5,
+    backoff_multiplier: float = 2.0,
+    max_backoff_seconds: float | None = None,
+    sleep_fn: Callable[[float], None] | None = None,
+) -> Lease | None
+```
+
+- Calls `acquire_proxy` up to `max_attempts` times.
+- Waits `backoff_seconds` between attempts (grows by `backoff_multiplier`
+  until capped by `max_backoff_seconds`).
+- Accepts a custom `sleep_fn` for tests; defaults to `time.sleep`.
+- Raises `ValueError` if retry parameters are invalid.
+
+### `with_retrying_lease`
+
+```python
+@contextmanager
+def with_retrying_lease(..., max_attempts: int = 3, backoff_seconds: float = 0.5, ...)
+```
+
+- Wraps `acquire_proxy_with_retry` and still guarantees releases on exit.
+- Use it when a worker should wait for a proxy before giving up.
+
 ### Selector Strategies
 
 `SelectorStrategy` enumerates the available selection behaviours:
@@ -131,15 +166,20 @@ ergonomic in `asyncio` applications:
 ```python
 from pharox import (
     acquire_proxy_async,
+    acquire_proxy_with_retry_async,
     release_proxy_async,
     with_lease_async,
+    with_retrying_lease_async,
 )
 ```
 
 - `acquire_proxy_async` and `release_proxy_async` delegate to the synchronous
   manager via `asyncio.to_thread`, keeping event loops responsive.
-- `with_lease_async` mirrors the synchronous context manager while ensuring
-  leases are released when the async block exits—even if an exception occurs.
+- `acquire_proxy_with_retry_async` mirrors the retry helper for async code,
+  exposing the same parameters.
+- `with_lease_async` and `with_retrying_lease_async` mirror their synchronous
+  counterparts while ensuring leases are released when async blocks exit—even if
+  an exception occurs.
 
 Use these helpers whenever your storage adapter is synchronous but the calling
 code runs inside an async worker or FastAPI route handler.

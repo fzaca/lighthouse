@@ -91,6 +91,10 @@ def process_account(account_id: str) -> None:
 Use your orchestration tool (Celery, RQ, APScheduler) to call `process_account`
 with retry policies that fit your workload.
 
+Need bounded backoff before giving up? Swap the context manager for
+`manager.with_retrying_lease(...)` or use `manager.acquire_proxy_with_retry(...)`
+to wait for capacity with exponential delays.
+
 ## 3. Handle Errors Safely
 
 Because the context manager releases the lease in a `finally` block, any raised

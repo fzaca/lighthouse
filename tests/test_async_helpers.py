@@ -2,8 +2,10 @@ import pytest
 
 from pharox.async_helpers import (
     acquire_proxy_async,
+    acquire_proxy_with_retry_async,
     release_proxy_async,
     with_lease_async,
+    with_retrying_lease_async,
 )
 from pharox.models import ProxyProtocol, ProxyStatus
 from pharox.storage.in_memory import InMemoryStorage
@@ -44,6 +46,86 @@ async def test_async_acquire_and_release(
 
     await release_proxy_async(manager, lease)
     refreshed_proxy = storage.get_proxy_by_id(proxy.id)
+    assert refreshed_proxy is not None
+    assert refreshed_proxy.current_leases == 0
+
+
+@pytest.mark.asyncio
+async def test_acquire_proxy_with_retry_async_eventually_succeeds(
+    manager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+) -> None:
+    """Async retry helper mirrors sync semantics."""
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    recorded_delays = []
+    seeded = {"done": False}
+
+    def fake_sleep(delay: float) -> None:
+        recorded_delays.append(delay)
+        if not seeded["done"]:
+            bootstrap_proxy(
+                storage,
+                pool=pool,
+                host="10.0.0.3",
+                port=8081,
+                protocol=ProxyProtocol.HTTP,
+                status=ProxyStatus.ACTIVE,
+            )
+            seeded["done"] = True
+
+    lease = await acquire_proxy_with_retry_async(
+        manager,
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        max_attempts=3,
+        backoff_seconds=0.01,
+        sleep_fn=fake_sleep,
+    )
+
+    assert lease is not None
+    assert recorded_delays == [0.01]
+
+
+@pytest.mark.asyncio
+async def test_with_retrying_lease_async_always_releases(
+    manager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+) -> None:
+    """Async context manager should free leases even with retries."""
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    seeded = {"done": False}
+
+    def fake_sleep(_: float) -> None:
+        if not seeded["done"]:
+            bootstrap_proxy(
+                storage,
+                pool=pool,
+                host="10.0.0.4",
+                port=8082,
+                protocol=ProxyProtocol.HTTP,
+                status=ProxyStatus.ACTIVE,
+                max_concurrency=1,
+            )
+            seeded["done"] = True
+
+    async with with_retrying_lease_async(
+        manager,
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        max_attempts=2,
+        backoff_seconds=0.01,
+        sleep_fn=fake_sleep,
+    ) as lease:
+        assert lease is not None
+        proxy_id = lease.proxy_id
+
+    refreshed_proxy = storage.get_proxy_by_id(proxy_id)
     assert refreshed_proxy is not None
     assert refreshed_proxy.current_leases == 0
 

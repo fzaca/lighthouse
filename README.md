@@ -100,6 +100,11 @@ else:
     print("Failed to acquire a proxy. None available.")
 ```
 
+If your worker needs to wait for capacity, call
+`manager.acquire_proxy_with_retry(...)` (or the `manager.with_retrying_lease`
+context manager) to add exponential backoff without scattering custom loops
+throughout your codebase.
+
 ### Filtering and Geospatial Matching
 
 `ProxyFilters` let you target proxies by provider metadata or geographic
