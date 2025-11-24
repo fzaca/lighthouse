@@ -28,7 +28,7 @@ from pharox import (
 )
 from pharox.models import Proxy
 from pharox.storage.postgres import PostgresStorage
-from pharox.storage.postgres.tables import pool_table, proxy_table
+from pharox.storage.postgres.tables import metadata, pool_table, proxy_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("pharox.demo-worker")
@@ -49,6 +49,7 @@ def _get_engine() -> Engine:
 
 def seed_pool(engine: Engine) -> None:
     """Ensure a pool and proxies exist for the demo worker."""
+    metadata.create_all(engine)
     with engine.begin() as conn:
         pool_row = (
             conn.execute(
