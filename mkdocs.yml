@@ -51,6 +51,7 @@ nav:
       - Quickstart: getting-started/quickstart.md
   - How-To Guides:
       - Embed Pharox in a Worker: how-to/embed-worker.md
+      - Use Pharox with Task Queues: how-to/task-queues.md
       - Instrument Lifecycle Hooks: how-to/lifecycle-hooks.md
       - Build a PostgreSQL Adapter: how-to/postgres-adapter.md
       - Run Health Checks at Scale: how-to/health-sweeps.md
