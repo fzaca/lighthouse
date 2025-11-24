@@ -9,7 +9,7 @@ leases proxies in a loop, and runs periodic health sweeps to keep state fresh.
 - PostgreSQL 16 for leases, pools, and health data
 - Worker container running Pharox with Prometheus metrics on port `8000`
 - Prometheus scraping the worker
-- Grafana with a pre-provisioned dashboard (http://localhost:3000, admin/admin)
+- Grafana with a pre-provisioned dashboard (http://localhost:3300, admin/admin)
 
 ## Quickstart
 
@@ -21,7 +21,7 @@ Once the containers are healthy:
 
 - Metrics endpoint: <http://localhost:8000/>
 - Prometheus UI: <http://localhost:9090>
-- Grafana dashboard: <http://localhost:3000/d/pharox-demo>
+- Grafana dashboard: <http://localhost:3300/d/pharox-demo>
 
 ## What the worker does
 

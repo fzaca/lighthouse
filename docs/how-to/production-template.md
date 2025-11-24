@@ -22,7 +22,7 @@ docker compose -f examples/production-template/docker-compose.yml up --build
 
 - Metrics endpoint: <http://localhost:8000/>
 - Prometheus UI: <http://localhost:9090>
-- Grafana dashboard: <http://localhost:3000/d/pharox-demo>
+- Grafana dashboard: <http://localhost:3300/d/pharox-demo>
 
 ## Customize
 
