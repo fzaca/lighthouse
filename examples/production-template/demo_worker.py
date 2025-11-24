@@ -99,8 +99,8 @@ def seed_pool(engine: Engine) -> None:
         ]
         for proxy in proxies:
             conn.execute(
-                proxy_table.insert().values(pool_id=pool_id, **proxy)
-            )
+            proxy_table.insert().values(pool_id=pool_id, **proxy)
+        )
         logger.info("Seeded %s demo proxies into pool %s", len(proxies), POOL_NAME)
 
 
