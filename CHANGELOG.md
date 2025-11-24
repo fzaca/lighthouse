@@ -1,10 +1,24 @@
-## 0.5.0 (Unreleased)
+## 0.5.0 (2025-11-24)
 
 ### Feat
 
-- add selector strategies for proxy acquisition (least-used, round-robin)
-- persist selector cursors for the Postgres adapter and docs
-- support composite proxy filters (AND/OR + predicates) across adapters and docs
+- add observability helpers
+- add benchmark harness
+- **filters**: support composite expressions
+- **manager**: add retry helpers
+- **storage**: add selector strategies for leasing
+
+### Fix
+
+- expose demo metrics on default registry
+- pin grafana prometheus datasource uid
+- export health check strategy
+- use synthetic health checks in demo
+- assign ids to demo proxies
+- seed proxies with uuids
+- seed pool ids in production template
+- create tables in production template
+- include readme in worker build
 
 ## 0.4.0 (2025-11-08)
 
