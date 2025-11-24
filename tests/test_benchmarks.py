@@ -7,6 +7,7 @@ from pharox.storage.in_memory import InMemoryStorage
 
 
 def test_leasing_benchmark_returns_result():
+    """Leasing benchmark returns a populated result."""
     storage = InMemoryStorage()
     result = run_leasing_benchmark(
         storage,
@@ -21,6 +22,7 @@ def test_leasing_benchmark_returns_result():
 
 
 def test_health_benchmark_uses_synthetic_strategy():
+    """Health benchmark uses synthetic strategy and aggregates counts."""
     storage = InMemoryStorage()
     result = run_health_benchmark(
         storage,

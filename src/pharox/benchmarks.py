@@ -21,6 +21,8 @@ from pharox.utils import bootstrap_consumer, bootstrap_pool, bootstrap_proxy
 
 @dataclass
 class BenchmarkResult:
+    """Result of a single benchmark run."""
+
     name: str
     iterations: int
     elapsed_seconds: float
@@ -32,11 +34,13 @@ class SyntheticHealthCheckStrategy(HealthCheckStrategy):
     """Synthetic strategy that simulates latency without network IO."""
 
     def __init__(self, latency_ms: float = 1.0) -> None:
+        """Initialize with a fixed latency (milliseconds)."""
         self._latency_ms = latency_ms
 
     async def check(
         self, proxy, options: HealthCheckOptions
     ) -> HealthCheckResult:
+        """Simulate a health check by sleeping for the configured latency."""
         await asyncio.sleep(self._latency_ms / 1000)
         return HealthCheckResult(
             proxy_id=proxy.id,
@@ -163,6 +167,7 @@ def build_storage(
     if adapter == "postgres":
         try:
             from sqlalchemy import create_engine
+
             from pharox.storage.postgres import PostgresStorage
             from pharox.storage.postgres.tables import metadata
         except ImportError as exc:  # pragma: no cover - optional dependency
@@ -193,7 +198,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument(
         "--dsn",
-        help="Connection string for the Postgres adapter (required when adapter=postgres).",
+        help=(
+            "Connection string for the Postgres adapter "
+            "(required when adapter=postgres)."
+        ),
     )
     parser.add_argument(
         "--iterations",

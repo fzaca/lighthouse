@@ -72,6 +72,7 @@ def _release_payload():
 
 
 def test_structured_logger_emits_acquire_records():
+    """Logger captures structured acquire payloads."""
     logger = _FakeLogger()
     structured = StructuredLogger(logger=logger, random_fn=lambda: 0.0)
 
@@ -86,6 +87,7 @@ def test_structured_logger_emits_acquire_records():
 
 
 def test_structured_logger_respects_sampling():
+    """Logger sampling can skip both acquire and release events."""
     logger = _FakeLogger()
     structured = StructuredLogger(
         logger=logger, sample_rate=0.0, random_fn=lambda: 0.5
@@ -98,6 +100,7 @@ def test_structured_logger_respects_sampling():
 
 
 def test_structured_logger_emits_release_records():
+    """Logger captures structured release payloads."""
     logger = _FakeLogger()
     structured = StructuredLogger(logger=logger, random_fn=lambda: 0.0)
 

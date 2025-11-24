@@ -108,6 +108,7 @@ def stub_prometheus(monkeypatch):
 
 
 def test_acquire_metrics_are_recorded():
+    """Prometheus recorder increments counters and histograms on acquire."""
     recorder = PrometheusMetricsRecorder(namespace="test")
     payload = _acquire_payload()
 
@@ -130,6 +131,7 @@ def test_acquire_metrics_are_recorded():
 
 
 def test_release_metrics_are_recorded():
+    """Prometheus recorder increments counters and histograms on release."""
     recorder = PrometheusMetricsRecorder(namespace="test")
     payload = _release_payload()
 

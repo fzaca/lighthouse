@@ -26,6 +26,7 @@ class StructuredLogger:
         self._random_fn = random_fn or random.random
 
     def handle_acquire(self, payload: AcquireEventPayload) -> None:
+        """Emit an acquisition log if sampling allows."""
         if not self._should_emit():
             return
         self._logger.info(
@@ -34,6 +35,7 @@ class StructuredLogger:
         )
 
     def handle_release(self, payload: ReleaseEventPayload) -> None:
+        """Emit a release log if sampling allows."""
         if not self._should_emit():
             return
         self._logger.info(
