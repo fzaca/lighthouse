@@ -54,6 +54,7 @@ nav:
       - Instrument Lifecycle Hooks: how-to/lifecycle-hooks.md
       - Build a PostgreSQL Adapter: how-to/postgres-adapter.md
       - Run Health Checks at Scale: how-to/health-sweeps.md
+      - Run Benchmarks: how-to/benchmarks.md
   - Concepts:
       - Proxy Manager Deep Dive: proxy-manager.md
       - Models & Filters: models.md

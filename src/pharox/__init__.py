@@ -7,6 +7,11 @@ from .async_helpers import (
     with_lease_async,
     with_retrying_lease_async,
 )
+from .benchmarks import (
+    BenchmarkResult,
+    run_health_benchmark,
+    run_leasing_benchmark,
+)
 from .health import HealthChecker, HealthCheckOrchestrator
 from .manager import ProxyManager
 from .models import (
@@ -62,4 +67,7 @@ __all__ = [
     "bootstrap_consumer",
     "bootstrap_pool",
     "bootstrap_proxy",
+    "BenchmarkResult",
+    "run_health_benchmark",
+    "run_leasing_benchmark",
 ]
