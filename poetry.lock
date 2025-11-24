@@ -1254,6 +1254,22 @@ pyyaml = ">=5.1"
 virtualenv = ">=20.10.0"
 
 [[package]]
+name = "prometheus-client"
+version = "0.21.1"
+description = "Python client for the Prometheus monitoring system."
+optional = true
+python-versions = ">=3.8"
+groups = ["main"]
+markers = "extra == \"observability\""
+files = [
+    {file = "prometheus_client-0.21.1-py3-none-any.whl", hash = "sha256:594b45c410d6f4f8888940fe80b5cc2521b305a1fafe1c58609ef715a001f301"},
+    {file = "prometheus_client-0.21.1.tar.gz", hash = "sha256:252505a722ac04b0456be05c05f75f45d760c2911ffc45f2a06bcaed9f3ae3fb"},
+]
+
+[package.extras]
+twisted = ["twisted"]
+
+[[package]]
 name = "prompt-toolkit"
 version = "3.0.51"
 description = "Library for building powerful interactive command lines in Python"
@@ -2141,10 +2157,11 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more_it
 type = ["pytest-mypy"]
 
 [extras]
+observability = ["prometheus-client"]
 postgres = ["alembic", "psycopg", "sqlalchemy"]
 socks = []
 
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "479ecf2cc27903475dded6261c00d057a41d80d933672c15dce147a1251e7715"
+content-hash = "a165b795edc7ea174f5c7ba11717531954d143719e2a8d427a4900b8a55c807d"
