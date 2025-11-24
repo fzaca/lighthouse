@@ -15,7 +15,7 @@ from pharox.models import (
     ProxyStatus,
     SelectorStrategy,
 )
-from pharox.storage import IStorage, InMemoryStorage
+from pharox.storage import InMemoryStorage, IStorage
 from pharox.utils import bootstrap_consumer, bootstrap_pool, bootstrap_proxy
 
 
@@ -187,6 +187,7 @@ def build_storage(
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    """CLI entry point to run leasing and health benchmarks."""
     parser = argparse.ArgumentParser(
         description="Benchmark Pharox leasing and health-check throughput."
     )

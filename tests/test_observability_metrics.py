@@ -103,6 +103,7 @@ def _release_payload():
 
 @pytest.fixture(autouse=True)
 def stub_prometheus(monkeypatch):
+    """Stub prometheus client so tests run without the optional extra."""
     monkeypatch.setattr(metrics_module, "prometheus_client", _StubPrometheusClient())
     yield
 
