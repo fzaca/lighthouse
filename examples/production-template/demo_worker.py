@@ -12,6 +12,7 @@ import os
 import random
 import time
 from typing import List
+from uuid import uuid4
 
 from prometheus_client import start_http_server
 from sqlalchemy import select
@@ -62,7 +63,9 @@ def seed_pool(engine: Engine) -> None:
             pool_id = pool_row["id"]
         else:
             result = conn.execute(
-                pool_table.insert().values(name=POOL_NAME, description="Demo pool")
+                pool_table.insert().values(
+                    id=uuid4(), name=POOL_NAME, description="Demo pool"
+                )
             )
             pool_id = result.inserted_primary_key[0]
             logger.info("Created pool %s (%s)", POOL_NAME, pool_id)
