@@ -79,18 +79,21 @@ def seed_pool(engine: Engine) -> None:
 
         proxies = [
             dict(
+                id=uuid4(),
                 host="10.0.0.1",
                 port=8001,
                 protocol=ProxyProtocol.HTTP.value,
                 status=ProxyStatus.ACTIVE.value,
             ),
             dict(
+                id=uuid4(),
                 host="10.0.0.2",
                 port=8002,
                 protocol=ProxyProtocol.HTTP.value,
                 status=ProxyStatus.ACTIVE.value,
             ),
             dict(
+                id=uuid4(),
                 host="10.0.0.3",
                 port=8003,
                 protocol=ProxyProtocol.HTTP.value,
