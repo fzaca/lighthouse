@@ -147,6 +147,19 @@ def _simulate_work(manager: ProxyManager) -> None:
     manager.release_proxy(lease)
 
 
+def _prime_metrics(manager: ProxyManager) -> None:
+    """Emit a couple of acquire/release events so metrics appear immediately."""
+    for _ in range(2):
+        lease = manager.acquire_proxy(
+            pool_name=POOL_NAME,
+            consumer_name="metrics-prime",
+            selector=SelectorStrategy.ROUND_ROBIN,
+            duration_seconds=1,
+        )
+        if lease:
+            manager.release_proxy(lease)
+
+
 async def _health_sweep(
     engine: Engine, orchestrator: HealthCheckOrchestrator
 ) -> None:
@@ -178,6 +191,7 @@ async def main() -> None:
     storage = PostgresStorage(engine)
     manager = ProxyManager(storage=storage)
     register_prometheus_metrics(manager)
+    _prime_metrics(manager)
     orchestrator = HealthCheckOrchestrator(storage=storage)
     synthetic = _SyntheticHealthStrategy()
     orchestrator.checker.register_strategy(ProxyProtocol.HTTP, synthetic)
