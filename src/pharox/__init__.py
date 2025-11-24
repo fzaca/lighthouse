@@ -12,7 +12,7 @@ from .benchmarks import (
     run_health_benchmark,
     run_leasing_benchmark,
 )
-from .health import HealthChecker, HealthCheckOrchestrator
+from .health import HealthChecker, HealthCheckOrchestrator, HealthCheckStrategy
 from .manager import ProxyManager
 from .models import (
     AcquireEventPayload,
@@ -48,6 +48,7 @@ __all__ = [
     "Consumer",
     "HealthCheckOrchestrator",
     "HealthChecker",
+    "HealthCheckStrategy",
     "HealthCheckOptions",
     "HealthCheckResult",
     "IStorage",
