@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: "pharox"
+    orgId: 1
+    folder: "Pharox"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

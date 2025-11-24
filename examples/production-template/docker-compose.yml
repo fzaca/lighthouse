@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: pharox
+      POSTGRES_USER: pharox
+      POSTGRES_PASSWORD: pharox
+    ports:
+      - "5439:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pharox"]
+      interval: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: examples/production-template/worker.Dockerfile
+    environment:
+      PHAROX_DSN: postgresql+psycopg://pharox:pharox@db:5432/pharox
+      PHAROX_POOL: residential
+      PHAROX_METRICS_PORT: 8000
+      PHAROX_HEALTH_INTERVAL: 60
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - worker
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus

@@ -53,6 +53,7 @@ nav:
       - Embed Pharox in a Worker: how-to/embed-worker.md
       - Use Pharox with Task Queues: how-to/task-queues.md
       - Instrument Lifecycle Hooks: how-to/lifecycle-hooks.md
+      - Production Template (Compose + Metrics): how-to/production-template.md
       - Build a PostgreSQL Adapter: how-to/postgres-adapter.md
       - Run Health Checks at Scale: how-to/health-sweeps.md
       - Run Benchmarks: how-to/benchmarks.md
