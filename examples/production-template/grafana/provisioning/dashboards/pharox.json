@@ -28,7 +28,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(pharox_acquire_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(pharox_acquire_duration_seconds_bucket[1m])) by (le))",
           "legendFormat": "p95",
           "refId": "A"
         }
@@ -85,7 +85,7 @@
       },
       "targets": [
         {
-          "expr": "rate(pharox_lease_duration_seconds_sum[5m]) / rate(pharox_lease_duration_seconds_count[5m])",
+          "expr": "rate(pharox_lease_duration_seconds_sum[1m]) / rate(pharox_lease_duration_seconds_count[1m])",
           "legendFormat": "{{pool}}",
           "refId": "A"
         }
