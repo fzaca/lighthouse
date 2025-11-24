@@ -60,6 +60,16 @@ Map the payload fields to timers and gauges in your telemetry stack. The example
 below uses a hypothetical StatsD client, but any metrics backend works:
 
 ```python
+from pharox.observability import PrometheusMetricsRecorder
+
+# Fast path: drop-in Prometheus metrics with counters + histograms.
+recorder = PrometheusMetricsRecorder()
+manager.register_acquire_callback(recorder.handle_acquire)
+manager.register_release_callback(recorder.handle_release)
+# Requires the optional extra:
+# pip install "pharox[observability]"
+
+# Or wire a different backend manually:
 def on_acquire(event: AcquireEventPayload) -> None:
     tags = {
         "pool": event.pool_name,
@@ -97,6 +107,14 @@ Structured logs make it easy to trace a proxy through your jobs. Include IDs,
 filters, and pool stats so you can replay what happened during an incident.
 
 ```python
+from pharox.observability import StructuredLogger
+
+# Sampling-friendly, structured logger for both events.
+structured = StructuredLogger(sample_rate=0.5)  # sample 50% of events
+manager.register_acquire_callback(structured.handle_acquire)
+manager.register_release_callback(structured.handle_release)
+
+# Manual logging example:
 def on_acquire(event: AcquireEventPayload) -> None:
     logger.info(
         "pharox.acquire",

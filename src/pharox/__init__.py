@@ -31,6 +31,12 @@ from .models import (
     ReleaseEventPayload,
     SelectorStrategy,
 )
+from .observability import (
+    DEFAULT_LATENCY_BUCKETS,
+    PrometheusMetricsRecorder,
+    StructuredLogger,
+    register_prometheus_metrics,
+)
 from .storage import InMemoryStorage, IStorage
 from .utils import (
     bootstrap_consumer,
@@ -70,4 +76,8 @@ __all__ = [
     "BenchmarkResult",
     "run_health_benchmark",
     "run_leasing_benchmark",
+    "PrometheusMetricsRecorder",
+    "StructuredLogger",
+    "register_prometheus_metrics",
+    "DEFAULT_LATENCY_BUCKETS",
 ]
