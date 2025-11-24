@@ -21,6 +21,8 @@ from sqlalchemy.engine import Engine, create_engine
 from pharox import (
     HealthCheckOptions,
     HealthCheckOrchestrator,
+    HealthCheckResult,
+    HealthCheckStrategy,
     ProxyManager,
     ProxyProtocol,
     ProxyStatus,
@@ -42,6 +44,21 @@ DSN = os.getenv(
 POOL_NAME = os.getenv("PHAROX_POOL", "residential")
 METRICS_PORT = int(os.getenv("PHAROX_METRICS_PORT", "8000"))
 HEALTH_INTERVAL_SECONDS = int(os.getenv("PHAROX_HEALTH_INTERVAL", "60"))
+
+
+class _SyntheticHealthStrategy(HealthCheckStrategy):
+    """Offline-friendly strategy that keeps proxies ACTIVE."""
+
+    async def check(
+        self, proxy: Proxy, options: HealthCheckOptions
+    ) -> HealthCheckResult:
+        await asyncio.sleep(0.01)
+        return HealthCheckResult(
+            proxy_id=proxy.id,
+            status=ProxyStatus.ACTIVE,
+            latency_ms=10,
+            protocol=proxy.protocol,
+        )
 
 
 def _get_engine() -> Engine:
@@ -102,8 +119,8 @@ def seed_pool(engine: Engine) -> None:
         ]
         for proxy in proxies:
             conn.execute(
-            proxy_table.insert().values(pool_id=pool_id, **proxy)
-        )
+                proxy_table.insert().values(pool_id=pool_id, **proxy)
+            )
         logger.info("Seeded %s demo proxies into pool %s", len(proxies), POOL_NAME)
 
 
@@ -162,6 +179,11 @@ async def main() -> None:
     manager = ProxyManager(storage=storage)
     register_prometheus_metrics(manager)
     orchestrator = HealthCheckOrchestrator(storage=storage)
+    synthetic = _SyntheticHealthStrategy()
+    orchestrator.checker.register_strategy(ProxyProtocol.HTTP, synthetic)
+    orchestrator.checker.register_strategy(ProxyProtocol.HTTPS, synthetic)
+    orchestrator.checker.register_strategy(ProxyProtocol.SOCKS4, synthetic)
+    orchestrator.checker.register_strategy(ProxyProtocol.SOCKS5, synthetic)
 
     start_http_server(METRICS_PORT)
     logger.info("Metrics server listening on :%s", METRICS_PORT)
