@@ -137,13 +137,13 @@ def _simulate_work(manager: ProxyManager) -> None:
         pool_name=POOL_NAME,
         consumer_name="demo-worker",
         selector=SelectorStrategy.ROUND_ROBIN,
+        duration_seconds=5,
     )
     if lease is None:
-        logger.warning("No proxy available; backing off")
-        time.sleep(0.5)
+        time.sleep(0.2)
         return
 
-    time.sleep(random.uniform(0.1, 0.4))
+    time.sleep(random.uniform(0.05, 0.1))
     manager.release_proxy(lease)
 
 
