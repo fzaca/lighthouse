@@ -30,7 +30,7 @@ Once the containers are healthy:
   histograms, and pool gauges.
 - Continuously acquires/releases leases to generate telemetry.
 - Runs a health sweep every `PHAROX_HEALTH_INTERVAL` seconds (default 60) using
-  the default HTTP health check options.
+  a synthetic health strategy (no external network required).
 
 ## Configuration
 

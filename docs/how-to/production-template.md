@@ -11,6 +11,7 @@ with PostgreSQL storage, Prometheus scraping, and a Grafana dashboard.
 
 - PostgreSQL for pools, leases, and health data.
 - Worker container running `demo_worker.py` with Prometheus metrics on `:8000`.
+- Synthetic health sweeps (no external network required) to keep proxies active.
 - Prometheus scraping the worker and exporting data to Grafana.
 - Grafana pre-provisioned with a basic dashboard (admin/admin).
 
