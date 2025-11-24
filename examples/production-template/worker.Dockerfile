@@ -4,7 +4,7 @@ WORKDIR /app
 
 ENV PIP_NO_CACHE_DIR=1
 
-COPY pyproject.toml poetry.lock* /app/
+COPY pyproject.toml poetry.lock* README.md /app/
 COPY src /app/src
 COPY examples /app/examples
 
