@@ -14,7 +14,7 @@ import time
 from typing import List
 from uuid import uuid4
 
-from prometheus_client import start_http_server
+from prometheus_client import REGISTRY, start_http_server
 from sqlalchemy import select
 from sqlalchemy.engine import Engine, create_engine
 
@@ -95,27 +95,27 @@ def seed_pool(engine: Engine) -> None:
             return
 
         proxies = [
-            dict(
-                id=uuid4(),
-                host="10.0.0.1",
-                port=8001,
-                protocol=ProxyProtocol.HTTP.value,
-                status=ProxyStatus.ACTIVE.value,
-            ),
-            dict(
-                id=uuid4(),
-                host="10.0.0.2",
-                port=8002,
-                protocol=ProxyProtocol.HTTP.value,
-                status=ProxyStatus.ACTIVE.value,
-            ),
-            dict(
-                id=uuid4(),
-                host="10.0.0.3",
-                port=8003,
-                protocol=ProxyProtocol.HTTP.value,
-                status=ProxyStatus.ACTIVE.value,
-            ),
+            {
+                "id": uuid4(),
+                "host": "10.0.0.1",
+                "port": 8001,
+                "protocol": ProxyProtocol.HTTP.value,
+                "status": ProxyStatus.ACTIVE.value,
+            },
+            {
+                "id": uuid4(),
+                "host": "10.0.0.2",
+                "port": 8002,
+                "protocol": ProxyProtocol.HTTP.value,
+                "status": ProxyStatus.ACTIVE.value,
+            },
+            {
+                "id": uuid4(),
+                "host": "10.0.0.3",
+                "port": 8003,
+                "protocol": ProxyProtocol.HTTP.value,
+                "status": ProxyStatus.ACTIVE.value,
+            },
         ]
         for proxy in proxies:
             conn.execute(
@@ -185,12 +185,14 @@ async def _health_sweep(
 
 
 async def main() -> None:
+    """Run the demo loop that seeds, leases, and exports metrics."""
     engine = _get_engine()
     seed_pool(engine)
 
     storage = PostgresStorage(engine)
     manager = ProxyManager(storage=storage)
-    register_prometheus_metrics(manager)
+    # Ensure we register metrics on the same registry served by the HTTP exporter.
+    register_prometheus_metrics(manager, registry=REGISTRY)
     _prime_metrics(manager)
     orchestrator = HealthCheckOrchestrator(storage=storage)
     synthetic = _SyntheticHealthStrategy()
@@ -199,7 +201,7 @@ async def main() -> None:
     orchestrator.checker.register_strategy(ProxyProtocol.SOCKS4, synthetic)
     orchestrator.checker.register_strategy(ProxyProtocol.SOCKS5, synthetic)
 
-    start_http_server(METRICS_PORT)
+    start_http_server(METRICS_PORT, registry=REGISTRY)
     logger.info("Metrics server listening on :%s", METRICS_PORT)
 
     last_health = time.time()
