@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from ..models import (
     HealthCheckResult,
+    Lease,
     PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
@@ -344,7 +345,7 @@ class _StorageContractSuite:
         consumer: str,
         duration_seconds: int = 60,
         proxy: Optional[Proxy] = None,
-    ):
+    ) -> Optional[Lease]:
         storage.ensure_consumer(consumer)
         candidate = proxy or storage.find_available_proxy(pool_name)
         if candidate is None:

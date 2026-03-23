@@ -13,6 +13,7 @@ from pydantic import (
     ConfigDict,
     Field,
     IPvAnyAddress,
+    field_validator,
     model_validator,
 )
 
@@ -38,6 +39,14 @@ class ProxyCredentials(BaseModel):
 
     user: str
     password: str
+
+    @field_validator("user", "password")
+    @classmethod
+    def validate_not_empty(cls, v: str) -> str:
+        """Ensure credential fields are not blank."""
+        if not v.strip():
+            raise ValueError("cannot be empty")
+        return v
 
 
 class ProxyProtocol(str, Enum):
@@ -300,7 +309,7 @@ class HealthCheckOptions(BaseModel):
     """Configuration for executing a proxy health check."""
 
     target_url: AnyHttpUrl = Field(
-        default="https://httpbin.org/ip",
+        default_factory=lambda: AnyHttpUrl("https://httpbin.org/ip"),
         description="HTTP endpoint used to verify proxy connectivity.",
     )
     timeout: float = Field(default=5.0, gt=0, description="Request timeout in seconds.")

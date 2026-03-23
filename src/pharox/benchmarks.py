@@ -11,6 +11,7 @@ from pharox.manager import ProxyManager
 from pharox.models import (
     HealthCheckOptions,
     HealthCheckResult,
+    Proxy,
     ProxyProtocol,
     ProxyStatus,
     SelectorStrategy,
@@ -38,7 +39,7 @@ class SyntheticHealthCheckStrategy(HealthCheckStrategy):
         self._latency_ms = latency_ms
 
     async def check(
-        self, proxy, options: HealthCheckOptions
+        self, proxy: Proxy, options: HealthCheckOptions
     ) -> HealthCheckResult:
         """Simulate a health check by sleeping for the configured latency."""
         await asyncio.sleep(self._latency_ms / 1000)
@@ -133,7 +134,7 @@ def run_health_benchmark(
     orchestrator.checker.register_strategy(ProxyProtocol.SOCKS5, checker)
     options = HealthCheckOptions(timeout=max(latency_ms / 1000, 0.001))
 
-    async def _run_checks():
+    async def _run_checks() -> float:
         start = perf_counter()
         for _ in range(rounds):
             async for _ in orchestrator.stream_health_checks(

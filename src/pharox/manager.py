@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Callable, Iterator, List, Optional
 
+from .exceptions import InvalidLeaseError
 from .models import (
     AcquireEventPayload,
     Lease,
@@ -65,7 +66,7 @@ class ProxyManager:
             The acquired lease, or None if no suitable proxy is found.
         """
         if duration_seconds <= 0:
-            raise ValueError("duration_seconds must be greater than zero.")
+            raise InvalidLeaseError("duration_seconds must be greater than zero.")
 
         effective_consumer_name = consumer_name or self.DEFAULT_CONSUMER_NAME
         started_at = datetime.now(timezone.utc)

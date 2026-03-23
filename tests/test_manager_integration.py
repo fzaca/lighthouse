@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 
+from pharox.exceptions import ConsumerNotFoundError, InvalidLeaseError
 from pharox.manager import ProxyManager
 from pharox.models import (
     AcquireEventPayload,
@@ -74,10 +75,10 @@ def test_acquire_proxy_rejects_non_positive_duration(
     manager: ProxyManager, test_pool_name: str
 ):
     """Ensure acquire_proxy rejects non-positive durations."""
-    with pytest.raises(ValueError, match="greater than zero"):
+    with pytest.raises(InvalidLeaseError, match="greater than zero"):
         manager.acquire_proxy(pool_name=test_pool_name, duration_seconds=0)
 
-    with pytest.raises(ValueError, match="greater than zero"):
+    with pytest.raises(InvalidLeaseError, match="greater than zero"):
         manager.acquire_proxy(pool_name=test_pool_name, duration_seconds=-60)
 
 
@@ -572,12 +573,12 @@ def test_acquire_from_pool_with_no_available_proxies(
     )
 
 
-def test_create_lease_raises_value_error_for_non_existent_consumer(
+def test_create_lease_raises_for_non_existent_consumer(
     storage: InMemoryStorage,
     test_pool_name: str,
 ):
     """
-    Test that the storage layer raises ValueError for a non-existent proxy.
+    Test that storage raises ConsumerNotFoundError for a non-existent consumer.
 
     This is a lower-level test directly on the storage to ensure it
     upholds its contract.
@@ -593,7 +594,7 @@ def test_create_lease_raises_value_error_for_non_existent_consumer(
     )
 
     # ACT & ASSERT
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(ConsumerNotFoundError, match="not found"):
         storage.create_lease(
             proxy=proxy,
             consumer_name="ghost-consumer",

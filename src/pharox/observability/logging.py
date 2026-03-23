@@ -4,7 +4,7 @@ import logging
 import random
 from typing import Callable, Dict, Optional
 
-from pharox.models import AcquireEventPayload, ReleaseEventPayload
+from pharox.models import AcquireEventPayload, PoolStatsSnapshot, ReleaseEventPayload
 
 
 class StructuredLogger:
@@ -86,7 +86,9 @@ class StructuredLogger:
             **self._pool_stats_payload(payload.pool_stats),
         }
 
-    def _pool_stats_payload(self, pool_stats) -> Dict[str, object]:
+    def _pool_stats_payload(
+        self, pool_stats: Optional[PoolStatsSnapshot]
+    ) -> Dict[str, object]:
         if not self._include_pool_stats or pool_stats is None:
             return {}
         return {

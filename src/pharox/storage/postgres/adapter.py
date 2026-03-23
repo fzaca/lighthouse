@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -31,6 +31,7 @@ from pharox.models import (
     SelectorStrategy,
 )
 from pharox.storage import IStorage
+from pharox.utils.geo import EARTH_RADIUS_KM
 
 from .tables import (
     consumer_table,
@@ -39,8 +40,6 @@ from .tables import (
     proxy_table,
     selector_state_table,
 )
-
-EARTH_RADIUS_KM = 6371.0
 
 
 class PostgresStorage(IStorage):
@@ -323,6 +322,8 @@ class PostgresStorage(IStorage):
                 .first()
             )
 
+            if aggregates is None:
+                return PoolStatsSnapshot(pool_name=pool_row["name"])
             return PoolStatsSnapshot(
                 pool_name=pool_row["name"],
                 total_proxies=int(aggregates["total_proxies"] or 0),
@@ -338,7 +339,7 @@ class PostgresStorage(IStorage):
         pool_id: UUID,
         availability: Select,
         strategy: SelectorStrategy,
-    ):
+    ) -> Optional[Any]:
         base_stmt = availability
         if strategy == SelectorStrategy.LEAST_USED:
             stmt = base_stmt.order_by(
@@ -366,11 +367,11 @@ class PostgresStorage(IStorage):
 
     def _select_round_robin(
         self, conn: Connection, pool_id: UUID, availability: Select
-    ):
+    ) -> Optional[Any]:
         last_proxy_id = self._get_selector_last_id(
             conn, pool_id, SelectorStrategy.ROUND_ROBIN
         )
-        orderings = []
+        orderings: List[Any] = []
         if last_proxy_id:
             orderings.append(
                 case(
@@ -394,7 +395,7 @@ class PostgresStorage(IStorage):
         conn: Connection,
         pool_id: UUID,
         strategy: SelectorStrategy,
-    ):
+    ) -> Optional[UUID]:
         row = (
             conn.execute(
                 select(selector_state_table.c.last_proxy_id)
@@ -461,7 +462,7 @@ class PostgresStorage(IStorage):
             return stmt
         return stmt.where(clause)
 
-    def _build_filter_clause(self, filters: ProxyFilters):
+    def _build_filter_clause(self, filters: ProxyFilters) -> Optional[Any]:
         clauses = []
         mapping = {
             "country": proxy_table.c.country,
@@ -494,22 +495,22 @@ class PostgresStorage(IStorage):
                 clauses.append(child_clause)
 
         if filters.any_of:
-            child_clauses = [
-                self._build_filter_clause(child)
+            any_of_clauses: List[Any] = [
+                c
                 for child in filters.any_of
+                if (c := self._build_filter_clause(child)) is not None
             ]
-            child_clauses = [clause for clause in child_clauses if clause is not None]
-            if child_clauses:
-                clauses.append(or_(*child_clauses))
+            if any_of_clauses:
+                clauses.append(or_(*any_of_clauses))
 
         if filters.none_of:
-            child_clauses = [
-                self._build_filter_clause(child)
+            none_of_clauses: List[Any] = [
+                c
                 for child in filters.none_of
+                if (c := self._build_filter_clause(child)) is not None
             ]
-            child_clauses = [clause for clause in child_clauses if clause is not None]
-            if child_clauses:
-                clauses.append(~or_(*child_clauses))
+            if none_of_clauses:
+                clauses.append(~or_(*none_of_clauses))
 
         if not clauses:
             return None
@@ -541,13 +542,13 @@ class PostgresStorage(IStorage):
             raise RuntimeError("Failed to load consumer row.")
         return existing
 
-    def _sum_case(self, condition):
+    def _sum_case(self, condition: Any) -> Any:
         return func.coalesce(
             func.sum(case((condition, 1), else_=0)),
             0,
         )
 
-    def _distance_km(self, lat: float, lon: float):
+    def _distance_km(self, lat: float, lon: float) -> Any:
         lat1 = func.radians(lat)
         lon1 = func.radians(lon)
         lat2 = func.radians(proxy_table.c.latitude)

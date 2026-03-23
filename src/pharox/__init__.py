@@ -12,6 +12,14 @@ from .benchmarks import (
     run_health_benchmark,
     run_leasing_benchmark,
 )
+from .exceptions import (
+    ConsumerNotFoundError,
+    InvalidLeaseError,
+    PharoxError,
+    PoolNotFoundError,
+    ProxyNotFoundError,
+    ProxyUnavailableError,
+)
 from .health import HealthChecker, HealthCheckOrchestrator, HealthCheckStrategy
 from .manager import ProxyManager
 from .models import (
@@ -45,6 +53,12 @@ from .utils import (
 )
 
 __all__ = [
+    "ConsumerNotFoundError",
+    "InvalidLeaseError",
+    "PharoxError",
+    "PoolNotFoundError",
+    "ProxyNotFoundError",
+    "ProxyUnavailableError",
     "Consumer",
     "HealthCheckOrchestrator",
     "HealthChecker",

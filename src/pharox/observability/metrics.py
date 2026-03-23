@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING, Any, Optional, Sequence
+
+if TYPE_CHECKING:
+    from pharox.manager import ProxyManager
 
 from pharox.models import (
     AcquireEventPayload,
@@ -29,7 +32,7 @@ DEFAULT_LATENCY_BUCKETS: Sequence[float] = (
 )
 
 
-def _require_prometheus_client():
+def _require_prometheus_client() -> Any:
     if prometheus_client is None:
         raise ImportError(
             "prometheus-client is required for PrometheusMetricsRecorder. "
@@ -145,7 +148,9 @@ class PrometheusMetricsRecorder:
         self._leased_gauge.labels(pool=pool_label).set(pool_stats.leased_proxies)
 
 
-def register_prometheus_metrics(manager, **kwargs) -> PrometheusMetricsRecorder:
+def register_prometheus_metrics(
+    manager: "ProxyManager", **kwargs: Any
+) -> PrometheusMetricsRecorder:
     """
     Register Prometheus metrics callbacks on a ProxyManager instance.
 

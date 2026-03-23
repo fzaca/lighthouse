@@ -3,6 +3,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from uuid import UUID
 
+from ..exceptions import (
+    ConsumerNotFoundError,
+    PoolNotFoundError,
+    ProxyNotFoundError,
+    ProxyUnavailableError,
+)
 from ..models import (
     Consumer,
     HealthCheckResult,
@@ -21,11 +27,11 @@ from .interface import IStorage
 class _InMemoryPool:
     """Represent a single pool of proxies in memory. (Internal class)."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.name = name
         self.proxies: Dict[UUID, Proxy] = {}
 
-    def add_proxy(self, proxy: Proxy):
+    def add_proxy(self, proxy: Proxy) -> None:
         """Add a proxy to the pool's internal dictionary."""
         self.proxies[proxy.id] = proxy
 
@@ -71,7 +77,7 @@ class InMemoryStorage(IStorage):
     and development environments.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the in-memory storage."""
         self._lock = threading.RLock()
         self._pools: Dict[UUID, _InMemoryPool] = {}
@@ -82,7 +88,7 @@ class InMemoryStorage(IStorage):
         self._proxy_id_to_pool_id: Dict[UUID, UUID] = {}
         self._round_robin_cursors: Dict[UUID, int] = {}
 
-    def add_pool(self, pool: ProxyPool):
+    def add_pool(self, pool: ProxyPool) -> None:
         """Add a proxy pool to the storage for testing.
 
         Args:
@@ -94,7 +100,7 @@ class InMemoryStorage(IStorage):
             self._pool_name_to_id[pool_copy.name] = pool_copy.id
             self._pools[pool_copy.id] = _InMemoryPool(name=pool_copy.name)
 
-    def add_consumer(self, consumer: Consumer):
+    def add_consumer(self, consumer: Consumer) -> None:
         """Add a consumer to the storage for testing.
 
         Args:
@@ -114,7 +120,7 @@ class InMemoryStorage(IStorage):
             self._consumer_name_to_id[consumer_name] = consumer.id
             return consumer.id
 
-    def add_proxy(self, proxy: Proxy):
+    def add_proxy(self, proxy: Proxy) -> None:
         """Add a proxy to its corresponding pool in the storage.
 
         Args:
@@ -123,13 +129,13 @@ class InMemoryStorage(IStorage):
 
         Raises
         ------
-            ValueError: If the proxy's pool_id does not exist in the storage.
+            PoolNotFoundError: If the proxy's pool_id does not exist in the storage.
         """
         with self._lock:
             p_copy = proxy.model_copy(deep=True)
             pool_id = p_copy.pool_id
             if pool_id not in self._pools:
-                raise ValueError(f"Pool with ID {pool_id} does not exist.")
+                raise PoolNotFoundError(f"Pool with ID {pool_id} does not exist.")
             self._pools[pool_id].add_proxy(p_copy)
             self._proxy_id_to_pool_id[p_copy.id] = pool_id
 
@@ -228,18 +234,24 @@ class InMemoryStorage(IStorage):
         with self._lock:
             consumer_id = self._consumer_name_to_id.get(consumer_name)
             if not consumer_id:
-                raise ValueError(f"Consumer with name '{consumer_name}' not found.")
+                raise ConsumerNotFoundError(
+                    f"Consumer with name '{consumer_name}' not found."
+                )
 
             proxy_in_storage = self.get_proxy_by_id(proxy.id)
             if not proxy_in_storage:
-                raise ValueError(f"Proxy with ID {proxy.id} not found in storage.")
+                raise ProxyNotFoundError(
+                    f"Proxy with ID {proxy.id} not found in storage."
+                )
 
             is_available = (
                 proxy_in_storage.max_concurrency is None
                 or proxy_in_storage.current_leases < proxy_in_storage.max_concurrency
             )
             if not is_available:
-                raise RuntimeError(f"Proxy {proxy.id} is no longer available.")
+                raise ProxyUnavailableError(
+                    f"Proxy {proxy.id} is no longer available."
+                )
 
             now = datetime.now(timezone.utc)
             expires_at = now + timedelta(seconds=duration_seconds)
