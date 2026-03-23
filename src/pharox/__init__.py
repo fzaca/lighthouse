@@ -37,6 +37,7 @@ from .models import (
     ProxyProtocol,
     ProxyStatus,
     ReleaseEventPayload,
+    RetryConfig,
     SelectorStrategy,
 )
 from .observability import (
@@ -80,6 +81,7 @@ __all__ = [
     "SelectorStrategy",
     "AcquireEventPayload",
     "ReleaseEventPayload",
+    "RetryConfig",
     "acquire_proxy_async",
     "acquire_proxy_with_retry_async",
     "release_proxy_async",

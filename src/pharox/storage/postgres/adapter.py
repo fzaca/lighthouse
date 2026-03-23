@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Sequence
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -255,6 +255,39 @@ class PostgresStorage(IStorage):
                 )
 
             return len(lease_ids)
+
+    def add_proxies_bulk(self, proxies: Sequence[Proxy]) -> int:
+        """Insert multiple proxies in a single database transaction."""
+        if not proxies:
+            return 0
+        with self._engine.begin() as conn:
+            rows = [
+                {
+                    "id": proxy.id,
+                    "pool_id": proxy.pool_id,
+                    "host": str(proxy.host),
+                    "port": proxy.port,
+                    "protocol": proxy.protocol.value,
+                    "status": proxy.status.value,
+                    "credentials": (
+                        proxy.credentials.model_dump()
+                        if proxy.credentials
+                        else None
+                    ),
+                    "source": proxy.source,
+                    "country": proxy.country,
+                    "city": proxy.city,
+                    "latitude": proxy.latitude,
+                    "longitude": proxy.longitude,
+                    "isp": proxy.isp,
+                    "asn": proxy.asn,
+                    "max_concurrency": proxy.max_concurrency,
+                    "checked_at": proxy.checked_at,
+                }
+                for proxy in proxies
+            ]
+            conn.execute(insert(proxy_table).values(rows))
+        return len(rows)
 
     def apply_health_check_result(
         self, result: HealthCheckResult

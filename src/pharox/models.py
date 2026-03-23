@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from math import asin, cos, isclose, radians, sin, sqrt
@@ -358,3 +359,23 @@ class ReleaseEventPayload(BaseModel):
     )
     lease_duration_ms: Optional[int] = Field(default=None, ge=0)
     pool_stats: Optional[PoolStatsSnapshot] = None
+
+
+@dataclass
+class RetryConfig:
+    """Configuration for retry/backoff behaviour when acquiring a proxy."""
+
+    max_attempts: int = 3
+    backoff_seconds: float = 0.5
+    backoff_multiplier: float = 2.0
+    max_backoff_seconds: Optional[float] = None
+
+    def __post_init__(self) -> None:  # noqa: D105
+        if self.max_attempts < 1:
+            raise ValueError("max_attempts must be at least 1.")
+        if self.backoff_seconds < 0:
+            raise ValueError("backoff_seconds must be non-negative.")
+        if self.backoff_multiplier < 1:
+            raise ValueError("backoff_multiplier must be at least 1.")
+        if self.max_backoff_seconds is not None and self.max_backoff_seconds <= 0:
+            raise ValueError("max_backoff_seconds must be positive when provided.")

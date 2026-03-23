@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator, Callable, Optional
 
 from .manager import ProxyManager
-from .models import Lease, ProxyFilters, SelectorStrategy
+from .models import Lease, ProxyFilters, RetryConfig, SelectorStrategy
 
 
 async def acquire_proxy_async(
@@ -75,17 +75,19 @@ async def acquire_proxy_with_retry_async(
     duration_seconds: int = 300,
     filters: Optional[ProxyFilters] = None,
     selector: Optional[SelectorStrategy] = None,
+    retry_config: Optional[RetryConfig] = None,
+    sleep_fn: Optional[Callable[[float], None]] = None,
     max_attempts: int = 3,
     backoff_seconds: float = 0.5,
     backoff_multiplier: float = 2.0,
     max_backoff_seconds: Optional[float] = None,
-    sleep_fn: Optional[Callable[[float], None]] = None,
 ) -> Optional[Lease]:
     """
     Async wrapper for ``ProxyManager.acquire_proxy_with_retry``.
 
     Runs the synchronous helper in a worker thread and keeps configurable retry
-    behavior accessible to async callers.
+    behavior accessible to async callers. Pass a ``RetryConfig`` instance via
+    ``retry_config`` for the preferred API.
     """
     return await asyncio.to_thread(
         manager.acquire_proxy_with_retry,
@@ -94,11 +96,12 @@ async def acquire_proxy_with_retry_async(
         duration_seconds=duration_seconds,
         filters=filters,
         selector=selector,
+        retry_config=retry_config,
+        sleep_fn=sleep_fn,
         max_attempts=max_attempts,
         backoff_seconds=backoff_seconds,
         backoff_multiplier=backoff_multiplier,
         max_backoff_seconds=max_backoff_seconds,
-        sleep_fn=sleep_fn,
     )
 
 
@@ -110,11 +113,12 @@ async def with_retrying_lease_async(
     duration_seconds: int = 300,
     filters: Optional[ProxyFilters] = None,
     selector: Optional[SelectorStrategy] = None,
+    retry_config: Optional[RetryConfig] = None,
+    sleep_fn: Optional[Callable[[float], None]] = None,
     max_attempts: int = 3,
     backoff_seconds: float = 0.5,
     backoff_multiplier: float = 2.0,
     max_backoff_seconds: Optional[float] = None,
-    sleep_fn: Optional[Callable[[float], None]] = None,
 ) -> AsyncIterator[Optional[Lease]]:
     """Async context manager mirroring ``ProxyManager.with_retrying_lease``."""
     lease = await acquire_proxy_with_retry_async(
@@ -124,11 +128,12 @@ async def with_retrying_lease_async(
         duration_seconds=duration_seconds,
         filters=filters,
         selector=selector,
+        retry_config=retry_config,
+        sleep_fn=sleep_fn,
         max_attempts=max_attempts,
         backoff_seconds=backoff_seconds,
         backoff_multiplier=backoff_multiplier,
         max_backoff_seconds=max_backoff_seconds,
-        sleep_fn=sleep_fn,
     )
     try:
         yield lease

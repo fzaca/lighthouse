@@ -1,7 +1,7 @@
 import pytest
 
 from pharox.manager import ProxyManager
-from pharox.models import ProxyProtocol, ProxyStatus
+from pharox.models import ProxyProtocol, ProxyStatus, RetryConfig
 from pharox.storage.in_memory import InMemoryStorage
 from pharox.utils.bootstrap import (
     bootstrap_consumer,
@@ -134,3 +134,76 @@ def test_acquire_proxy_with_retry_validates_arguments(
         manager.acquire_proxy_with_retry(
             pool_name=test_pool_name, max_backoff_seconds=0
         )
+
+
+def test_retry_config_validates_on_construction() -> None:
+    """RetryConfig should raise ValueError for invalid parameters."""
+    with pytest.raises(ValueError):
+        RetryConfig(max_attempts=0)
+    with pytest.raises(ValueError):
+        RetryConfig(backoff_seconds=-1)
+    with pytest.raises(ValueError):
+        RetryConfig(backoff_multiplier=0.5)
+    with pytest.raises(ValueError):
+        RetryConfig(max_backoff_seconds=0)
+
+
+def test_retry_config_overrides_individual_params(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+) -> None:
+    """When retry_config is provided, individual params are ignored."""
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    bootstrap_proxy(
+        storage,
+        pool=pool,
+        host="1.2.3.4",
+        port=8080,
+        protocol=ProxyProtocol.HTTP,
+        status=ProxyStatus.ACTIVE,
+    )
+
+    delays: list[float] = []
+
+    config = RetryConfig(max_attempts=2, backoff_seconds=0.1)
+    lease = manager.acquire_proxy_with_retry(
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        retry_config=config,
+        sleep_fn=delays.append,
+        # These should be ignored because retry_config is provided:
+        max_attempts=99,
+        backoff_seconds=99.0,
+    )
+    assert lease is not None
+    assert delays == []  # succeeded on first attempt, no sleep
+
+
+def test_with_retrying_lease_accepts_retry_config(
+    manager: ProxyManager,
+    storage: InMemoryStorage,
+    test_consumer_name: str,
+    test_pool_name: str,
+) -> None:
+    """with_retrying_lease should forward RetryConfig correctly."""
+    bootstrap_consumer(storage, name=test_consumer_name)
+    pool = bootstrap_pool(storage, name=test_pool_name)
+    bootstrap_proxy(
+        storage,
+        pool=pool,
+        host="5.6.7.8",
+        port=3128,
+        protocol=ProxyProtocol.HTTP,
+        status=ProxyStatus.ACTIVE,
+    )
+
+    config = RetryConfig(max_attempts=1)
+    with manager.with_retrying_lease(
+        pool_name=test_pool_name,
+        consumer_name=test_consumer_name,
+        retry_config=config,
+    ) as lease:
+        assert lease is not None

@@ -9,6 +9,7 @@ from .models import (
     Lease,
     ProxyFilters,
     ReleaseEventPayload,
+    RetryConfig,
     SelectorStrategy,
 )
 from .storage import IStorage
@@ -112,43 +113,49 @@ class ProxyManager:
         duration_seconds: int = 300,
         filters: Optional[ProxyFilters] = None,
         selector: Optional[SelectorStrategy] = None,
+        retry_config: Optional[RetryConfig] = None,
+        sleep_fn: Optional[Callable[[float], None]] = None,
         max_attempts: int = 3,
         backoff_seconds: float = 0.5,
         backoff_multiplier: float = 2.0,
         max_backoff_seconds: Optional[float] = None,
-        sleep_fn: Optional[Callable[[float], None]] = None,
     ) -> Optional[Lease]:
         """
         Acquire a proxy with retry/backoff semantics.
 
         Parameters
         ----------
-        max_attempts : int
-            Total attempts before giving up. Must be >= 1.
-        backoff_seconds : float
-            Initial delay (in seconds) before retrying. Set to 0 for immediate retries.
-        backoff_multiplier : float
-            Factor applied to the delay after each attempt. Must be >= 1.
-        max_backoff_seconds : Optional[float]
-            Upper bound for the delay (helpful to prevent unbounded waits).
-        sleep_fn : Optional[Callable[[float], None]]
+        retry_config : RetryConfig, optional
+            Retry/backoff configuration object. When provided, the individual
+            ``max_attempts``, ``backoff_seconds``, ``backoff_multiplier``, and
+            ``max_backoff_seconds`` parameters are ignored.
+        sleep_fn : Callable[[float], None], optional
             Custom sleep implementation (useful for tests). Defaults to ``time.sleep``.
+        max_attempts : int
+            Total attempts before giving up. Must be >= 1. Ignored when
+            ``retry_config`` is provided.
+        backoff_seconds : float
+            Initial delay in seconds before retrying. Ignored when
+            ``retry_config`` is provided.
+        backoff_multiplier : float
+            Factor applied to the delay after each attempt. Ignored when
+            ``retry_config`` is provided.
+        max_backoff_seconds : float, optional
+            Upper bound for the delay. Ignored when ``retry_config`` is provided.
         """
-        if max_attempts < 1:
-            raise ValueError("max_attempts must be at least 1.")
-        if backoff_seconds < 0:
-            raise ValueError("backoff_seconds must be non-negative.")
-        if backoff_multiplier < 1:
-            raise ValueError("backoff_multiplier must be at least 1.")
-        if max_backoff_seconds is not None and max_backoff_seconds <= 0:
-            raise ValueError("max_backoff_seconds must be positive when provided.")
+        config = retry_config or RetryConfig(
+            max_attempts=max_attempts,
+            backoff_seconds=backoff_seconds,
+            backoff_multiplier=backoff_multiplier,
+            max_backoff_seconds=max_backoff_seconds,
+        )
 
         sleep = sleep_fn or time.sleep
         lease: Optional[Lease] = None
         attempts = 0
-        delay = backoff_seconds
+        delay = config.backoff_seconds
 
-        while attempts < max_attempts and lease is None:
+        while attempts < config.max_attempts and lease is None:
             lease = self.acquire_proxy(
                 pool_name=pool_name,
                 consumer_name=consumer_name,
@@ -158,18 +165,18 @@ class ProxyManager:
             )
             attempts += 1
 
-            if lease is not None or attempts >= max_attempts:
+            if lease is not None or attempts >= config.max_attempts:
                 break
 
             wait = delay
-            if max_backoff_seconds is not None:
-                wait = min(wait, max_backoff_seconds)
+            if config.max_backoff_seconds is not None:
+                wait = min(wait, config.max_backoff_seconds)
             if wait > 0:
                 sleep(wait)
 
-            delay *= backoff_multiplier
-            if max_backoff_seconds is not None:
-                delay = min(delay, max_backoff_seconds)
+            delay *= config.backoff_multiplier
+            if config.max_backoff_seconds is not None:
+                delay = min(delay, config.max_backoff_seconds)
 
         return lease
 
@@ -250,16 +257,19 @@ class ProxyManager:
         duration_seconds: int = 300,
         filters: Optional[ProxyFilters] = None,
         selector: Optional[SelectorStrategy] = None,
+        retry_config: Optional[RetryConfig] = None,
+        sleep_fn: Optional[Callable[[float], None]] = None,
         max_attempts: int = 3,
         backoff_seconds: float = 0.5,
         backoff_multiplier: float = 2.0,
         max_backoff_seconds: Optional[float] = None,
-        sleep_fn: Optional[Callable[[float], None]] = None,
     ) -> Iterator[Optional[Lease]]:
         """
         Context manager that retries acquisitions before yielding.
 
         Mirrors ``with_lease`` while adding configurable retry/backoff handling.
+        Pass a ``RetryConfig`` instance via ``retry_config`` for the preferred API;
+        individual retry parameters are kept for backward compatibility.
         """
         lease = self.acquire_proxy_with_retry(
             pool_name=pool_name,
@@ -267,11 +277,12 @@ class ProxyManager:
             duration_seconds=duration_seconds,
             filters=filters,
             selector=selector,
+            retry_config=retry_config,
+            sleep_fn=sleep_fn,
             max_attempts=max_attempts,
             backoff_seconds=backoff_seconds,
             backoff_multiplier=backoff_multiplier,
             max_backoff_seconds=max_backoff_seconds,
-            sleep_fn=sleep_fn,
         )
         try:
             yield lease

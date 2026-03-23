@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Sequence
 from uuid import UUID
 
 from ..models import (
@@ -105,4 +105,19 @@ class IStorage(ABC):
     @abstractmethod
     def get_pool_stats(self, pool_name: str) -> Optional[PoolStatsSnapshot]:
         """Return aggregate stats for a pool."""
+        pass
+
+    @abstractmethod
+    def add_proxies_bulk(self, proxies: Sequence[Proxy]) -> int:
+        """
+        Add multiple proxies in a single operation.
+
+        Args:
+        ----
+            proxies: The proxy objects to add.
+
+        Returns
+        -------
+            Number of proxies successfully added.
+        """
         pass

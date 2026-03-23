@@ -1,6 +1,7 @@
+import logging
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 from uuid import UUID
 
 from ..exceptions import (
@@ -22,6 +23,8 @@ from ..models import (
     SelectorStrategy,
 )
 from .interface import IStorage
+
+_logger = logging.getLogger("pharox.storage")
 
 
 class _InMemoryPool:
@@ -176,6 +179,10 @@ class InMemoryStorage(IStorage):
 
             available = pool.available_proxies(filters)
             if not available:
+                _logger.debug(
+                    "pool '%s' exhausted: no available proxies match the request",
+                    pool_name,
+                )
                 return None
 
             strategy = selector or SelectorStrategy.FIRST_AVAILABLE
@@ -313,6 +320,8 @@ class InMemoryStorage(IStorage):
             ]
             for lease in expired_leases:
                 self.release_lease(lease)
+            if expired_leases:
+                _logger.debug("cleaned up %d expired lease(s)", len(expired_leases))
             return len(expired_leases)
 
     def apply_health_check_result(
@@ -346,6 +355,36 @@ class InMemoryStorage(IStorage):
             proxy.checked_at = result.checked_at
 
             return proxy.model_copy(deep=True)
+
+    def add_proxies_bulk(self, proxies: Sequence[Proxy]) -> int:
+        """
+        Add multiple proxies in a single locking operation.
+
+        Args:
+        ----
+            proxies: The proxy objects to add.
+
+        Returns
+        -------
+            Number of proxies successfully added.
+
+        Raises
+        ------
+            PoolNotFoundError: If any proxy's pool_id does not exist.
+        """
+        if not proxies:
+            return 0
+        with self._lock:
+            for proxy in proxies:
+                p_copy = proxy.model_copy(deep=True)
+                pool_id = p_copy.pool_id
+                if pool_id not in self._pools:
+                    raise PoolNotFoundError(
+                        f"Pool with ID {pool_id} does not exist."
+                    )
+                self._pools[pool_id].add_proxy(p_copy)
+                self._proxy_id_to_pool_id[p_copy.id] = pool_id
+        return len(proxies)
 
     def get_pool_stats(self, pool_name: str) -> Optional[PoolStatsSnapshot]:
         """Return aggregate stats for the requested pool."""
