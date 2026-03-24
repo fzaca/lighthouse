@@ -1,6 +1,7 @@
-"""PostgreSQL storage adapter and table metadata."""
+"""PostgreSQL storage adapters (sync and async) and table metadata."""
 
 from .adapter import PostgresStorage
+from .async_adapter import AsyncPostgresStorage
 from .tables import (
     consumer_table,
     lease_table,
@@ -11,6 +12,7 @@ from .tables import (
 )
 
 __all__ = [
+    "AsyncPostgresStorage",
     "PostgresStorage",
     "metadata",
     "pool_table",
