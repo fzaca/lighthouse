@@ -1,3 +1,15 @@
+## 0.6.0 (2026-03-24)
+
+### Feat
+
+- Sprint 4 — async storage interface, tracing callbacks, and Grafana dashboard
+- Sprint 3 — observability, concurrency tests, and production docs
+- add RetryConfig, add_proxies_bulk, and storage debug logging
+
+### Refactor
+
+- add custom exceptions, type safety fixes, and geo utility
+
 ## 0.5.0 (2025-11-24)
 
 ### Feat
