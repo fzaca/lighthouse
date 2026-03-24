@@ -47,6 +47,7 @@ class _StubPrometheusClient:
     Counter = _StubMetric
     Histogram = _StubMetric
     Gauge = _StubMetric
+    Summary = _StubMetric
 
 
 def _lease():
@@ -146,3 +147,41 @@ def test_release_metrics_are_recorded():
     assert histogram.observations == [
         pytest.approx(payload.lease_duration_ms / 1000)
     ]
+
+
+def test_acquire_summary_is_observed():
+    """Summary should record acquire latency when enable_summaries=True."""
+    recorder = PrometheusMetricsRecorder(namespace="test")
+    payload = _acquire_payload()
+
+    recorder.handle_acquire(payload)
+
+    assert recorder._acquire_duration_summary is not None
+    key = (("pool", payload.pool_name), ("status", "hit"))
+    summary = recorder._acquire_duration_summary.children[key]
+    assert summary.observations == [pytest.approx(payload.duration_ms / 1000)]
+
+
+def test_release_summary_is_observed():
+    """Summary should record lease duration when enable_summaries=True."""
+    recorder = PrometheusMetricsRecorder(namespace="test")
+    payload = _release_payload()
+
+    recorder.handle_release(payload)
+
+    assert recorder._lease_duration_summary is not None
+    key = (("pool", payload.pool_name),)
+    summary = recorder._lease_duration_summary.children[key]
+    assert summary.observations == [pytest.approx(payload.lease_duration_ms / 1000)]
+
+
+def test_summaries_disabled():
+    """When enable_summaries=False no Summary metrics are created."""
+    recorder = PrometheusMetricsRecorder(namespace="test", enable_summaries=False)
+
+    assert recorder._acquire_duration_summary is None
+    assert recorder._lease_duration_summary is None
+
+    # Must still work without summary.
+    recorder.handle_acquire(_acquire_payload())
+    recorder.handle_release(_release_payload())

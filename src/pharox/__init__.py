@@ -42,6 +42,7 @@ from .models import (
 )
 from .observability import (
     DEFAULT_LATENCY_BUCKETS,
+    DEFAULT_QUANTILES,
     PrometheusMetricsRecorder,
     StructuredLogger,
     register_prometheus_metrics,
@@ -97,4 +98,5 @@ __all__ = [
     "StructuredLogger",
     "register_prometheus_metrics",
     "DEFAULT_LATENCY_BUCKETS",
+    "DEFAULT_QUANTILES",
 ]

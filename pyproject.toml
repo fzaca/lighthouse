@@ -62,7 +62,8 @@ known-first-party = ["pharox"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --cov=src/pharox --cov-report=term-missing"
+addopts = "-ra -q --cov=src/pharox --cov-report=term-missing --cov-fail-under=85"
+filterwarnings = ["ignore::DeprecationWarning"]
 testpaths = ["tests"]
 markers = ["contract: marks adapter contract tests that may require external services"]
 
@@ -73,6 +74,9 @@ disallow_untyped_defs = true
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.coverage.run]
+omit = ["src/pharox/storage/postgres/*", "src/pharox/benchmarks.py"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"

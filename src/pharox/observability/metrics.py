@@ -31,6 +31,8 @@ DEFAULT_LATENCY_BUCKETS: Sequence[float] = (
     10.0,
 )
 
+DEFAULT_QUANTILES: Sequence[float] = (0.5, 0.95, 0.99)
+
 
 def _require_prometheus_client() -> Any:
     if prometheus_client is None:
@@ -51,10 +53,13 @@ class PrometheusMetricsRecorder:
         namespace: str = "pharox",
         acquire_buckets: Optional[Sequence[float]] = None,
         lease_buckets: Optional[Sequence[float]] = None,
+        enable_summaries: bool = True,
+        quantiles: Optional[Sequence[float]] = None,
     ) -> None:
         client = _require_prometheus_client()
         acquire_latency = tuple(acquire_buckets or DEFAULT_LATENCY_BUCKETS)
         lease_latency = tuple(lease_buckets or DEFAULT_LATENCY_BUCKETS)
+        active_quantiles = list(quantiles or DEFAULT_QUANTILES)
 
         self._acquire_total = client.Counter(
             "acquire_total",
@@ -107,6 +112,25 @@ class PrometheusMetricsRecorder:
             namespace=namespace,
             registry=registry,
         )
+        self._acquire_duration_summary: Optional[Any] = None
+        self._lease_duration_summary: Optional[Any] = None
+        if enable_summaries:
+            self._acquire_duration_summary = client.Summary(
+                "acquire_duration_summary_seconds",
+                "Quantile distribution of proxy acquisition latency.",
+                labelnames=("pool", "status"),
+                namespace=namespace,
+                registry=registry,
+                quantiles=active_quantiles,
+            )
+            self._lease_duration_summary = client.Summary(
+                "lease_duration_summary_seconds",
+                "Quantile distribution of proxy lease durations.",
+                labelnames=("pool",),
+                namespace=namespace,
+                registry=registry,
+                quantiles=active_quantiles,
+            )
 
     def handle_acquire(self, payload: AcquireEventPayload) -> None:
         """Handle an acquisition callback."""
@@ -117,20 +141,27 @@ class PrometheusMetricsRecorder:
             "selector": payload.selector.value,
             "status": status,
         }
+        duration_seconds = max(payload.duration_ms, 0) / 1000
         self._acquire_total.labels(**labels).inc()
-        self._acquire_duration_seconds.labels(**labels).observe(
-            max(payload.duration_ms, 0) / 1000
-        )
+        self._acquire_duration_seconds.labels(**labels).observe(duration_seconds)
+        if self._acquire_duration_summary is not None:
+            self._acquire_duration_summary.labels(
+                pool=payload.pool_name, status=status
+            ).observe(duration_seconds)
         self._set_pool_gauges(payload.pool_name, payload.pool_stats)
 
     def handle_release(self, payload: ReleaseEventPayload) -> None:
         """Handle a release callback."""
         pool_label = payload.pool_name or "unknown"
         self._release_total.labels(pool=pool_label).inc()
-        lease_duration_ms = payload.lease_duration_ms or 0
+        lease_duration_seconds = max(payload.lease_duration_ms or 0, 0) / 1000
         self._lease_duration_seconds.labels(pool=pool_label).observe(
-            max(lease_duration_ms, 0) / 1000
+            lease_duration_seconds
         )
+        if self._lease_duration_summary is not None:
+            self._lease_duration_summary.labels(pool=pool_label).observe(
+                lease_duration_seconds
+            )
         self._set_pool_gauges(pool_label, payload.pool_stats)
 
     def _set_pool_gauges(
