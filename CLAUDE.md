@@ -51,6 +51,11 @@ concepts into the toolkit.
 - Accompany functional changes with tests. Run `poetry run pytest` (or the
   relevant subset) before merging.
 - Use `commitizen` (`cz bump`) for releases, as described in `CONTRIBUTING.md`.
+- **Release tag format:** `cz bump` creates tags as `v$version` (e.g. `v0.7.0`).
+  The GitHub Actions release workflow (`release.yml`) triggers on tags matching
+  `v[0-9]+.[0-9]+.[0-9]+`. PyPI itself stores the version without the `v`
+  prefix (`0.7.0`) — that is normal and expected. Do not strip the `v` from git
+  tags; it is required for the publish workflow to fire.
 
 ## 5. Reference Materials
 
