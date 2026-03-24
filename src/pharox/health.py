@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, Dict, Iterable, Optional
+from typing import AsyncGenerator, Dict, Iterable, Optional, Union
 
 import httpx
 
@@ -12,6 +12,7 @@ from .models import (
     ProxyStatus,
 )
 from .storage import IStorage
+from .storage.async_interface import IAsyncStorage
 
 
 class HealthCheckStrategy(ABC):
@@ -163,7 +164,7 @@ class HealthCheckOrchestrator:
 
     def __init__(
         self,
-        storage: IStorage,
+        storage: Union[IStorage, IAsyncStorage],
         checker: Optional[HealthChecker] = None,
     ) -> None:
         self._storage = storage
@@ -174,17 +175,37 @@ class HealthCheckOrchestrator:
         """Expose the underlying health checker for advanced scenarios."""
         return self._checker
 
-    def apply_result(
-        self, result: HealthCheckResult
-    ) -> Optional[Proxy]:
+    def apply_result(self, result: HealthCheckResult) -> Optional[Proxy]:
         """
-        Persist a health check result using the configured storage backend.
+        Persist a health check result using a synchronous storage backend.
+
+        Use this method only when the storage passed at construction time
+        implements ``IStorage``. For ``IAsyncStorage`` backends call
+        ``apply_result_async`` instead.
 
         Returns
         -------
         Optional[Proxy]
             A copy of the updated proxy, or None if it could not be found.
         """
+        if isinstance(self._storage, IAsyncStorage):
+            raise TypeError(
+                "apply_result() cannot be used with an IAsyncStorage backend. "
+                "Await apply_result_async() instead."
+            )
+        return self._storage.apply_health_check_result(result)
+
+    async def apply_result_async(self, result: HealthCheckResult) -> Optional[Proxy]:
+        """
+        Persist a health check result, dispatching to sync or async storage.
+
+        Returns
+        -------
+        Optional[Proxy]
+            A copy of the updated proxy, or None if it could not be found.
+        """
+        if isinstance(self._storage, IAsyncStorage):
+            return await self._storage.apply_health_check_result(result)
         return self._storage.apply_health_check_result(result)
 
     async def check_proxy(
@@ -194,7 +215,7 @@ class HealthCheckOrchestrator:
     ) -> HealthCheckResult:
         """Run a health check for a single proxy and persist the outcome."""
         result = await self._checker.check_proxy(proxy, options=options)
-        self.apply_result(result)
+        await self.apply_result_async(result)
         return result
 
     async def stream_health_checks(
@@ -206,5 +227,5 @@ class HealthCheckOrchestrator:
         async for result in self._checker.stream_health_checks(
             proxies, options=options
         ):
-            self.apply_result(result)
+            await self.apply_result_async(result)
             yield result

@@ -45,9 +45,10 @@ from .observability import (
     DEFAULT_QUANTILES,
     PrometheusMetricsRecorder,
     StructuredLogger,
+    TracingRecorder,
     register_prometheus_metrics,
 )
-from .storage import InMemoryStorage, IStorage
+from .storage import AsyncInMemoryStorage, IAsyncStorage, InMemoryStorage, IStorage
 from .utils import (
     bootstrap_consumer,
     bootstrap_pool,
@@ -67,7 +68,9 @@ __all__ = [
     "HealthCheckStrategy",
     "HealthCheckOptions",
     "HealthCheckResult",
+    "IAsyncStorage",
     "IStorage",
+    "AsyncInMemoryStorage",
     "InMemoryStorage",
     "Lease",
     "LeaseStatus",
@@ -96,6 +99,7 @@ __all__ = [
     "run_leasing_benchmark",
     "PrometheusMetricsRecorder",
     "StructuredLogger",
+    "TracingRecorder",
     "register_prometheus_metrics",
     "DEFAULT_LATENCY_BUCKETS",
     "DEFAULT_QUANTILES",
