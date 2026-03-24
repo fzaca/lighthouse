@@ -1,3 +1,9 @@
+## 0.7.0 (2026-03-24)
+
+### Feat
+
+- add AsyncPostgresStorage backed by SQLAlchemy async + asyncpg
+
 ## 0.6.0 (2026-03-24)
 
 ### Feat
