@@ -10,6 +10,7 @@ from ..models import (
     PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
+    ProxyPool,
     SelectorStrategy,
 )
 
@@ -133,3 +134,83 @@ class IAsyncStorage(ABC):
         int
             Number of proxies successfully added.
         """
+
+    # ------------------------------------------------------------------
+    # CRUD operations — used by the service layer for administrative tasks
+    # ------------------------------------------------------------------
+
+    @abstractmethod
+    async def save_pool(self, pool: ProxyPool) -> None:
+        """Persist a pool (insert or upsert)."""
+
+    @abstractmethod
+    async def get_pool(self, pool_id: str) -> ProxyPool:
+        """Return a pool by its UUID string.
+
+        Raises
+        ------
+        PoolNotFoundError
+            If no pool with that ID exists.
+        """
+
+    @abstractmethod
+    async def list_pools(self) -> Sequence[ProxyPool]:
+        """Return all pools."""
+
+    @abstractmethod
+    async def delete_pool(self, pool_id: str) -> None:
+        """Delete a pool by its UUID string.
+
+        Raises
+        ------
+        PoolNotFoundError
+            If no pool with that ID exists.
+        """
+
+    @abstractmethod
+    async def save_proxy(self, proxy: Proxy) -> None:
+        """Persist a proxy (insert or upsert).
+
+        Raises
+        ------
+        PoolNotFoundError
+            If the proxy's pool does not exist.
+        """
+
+    @abstractmethod
+    async def get_proxy(self, proxy_id: str) -> Proxy:
+        """Return a proxy by its UUID string.
+
+        Raises
+        ------
+        ProxyNotFoundError
+            If no proxy with that ID exists.
+        """
+
+    @abstractmethod
+    async def list_proxies(self, pool_id: str) -> Sequence[Proxy]:
+        """Return all proxies in a pool.
+
+        Raises
+        ------
+        PoolNotFoundError
+            If no pool with that ID exists.
+        """
+
+    @abstractmethod
+    async def delete_proxy(self, proxy_id: str) -> None:
+        """Delete a proxy by its UUID string.
+
+        Raises
+        ------
+        ProxyNotFoundError
+            If no proxy with that ID exists.
+        """
+
+    @abstractmethod
+    async def get_lease(self, lease_id: str) -> Optional[Lease]:
+        """Return a lease by its UUID string, or None if not found."""
+
+    @abstractmethod
+    async def list_leases(self, consumer_id: Optional[str] = None) -> Sequence[Lease]:
+        """Return leases, optionally filtered by consumer UUID string."""

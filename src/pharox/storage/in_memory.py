@@ -84,6 +84,7 @@ class InMemoryStorage(IStorage):
         """Initialize the in-memory storage."""
         self._lock = threading.RLock()
         self._pools: Dict[UUID, _InMemoryPool] = {}
+        self._pool_objects: Dict[UUID, ProxyPool] = {}
         self._leases: Dict[UUID, Lease] = {}
 
         self._pool_name_to_id: Dict[str, UUID] = {}
@@ -98,10 +99,7 @@ class InMemoryStorage(IStorage):
         ----
             pool: The ProxyPool object to add.
         """
-        with self._lock:
-            pool_copy = pool.model_copy(deep=True)
-            self._pool_name_to_id[pool_copy.name] = pool_copy.id
-            self._pools[pool_copy.id] = _InMemoryPool(name=pool_copy.name)
+        self.save_pool(pool)
 
     def add_consumer(self, consumer: Consumer) -> None:
         """Add a consumer to the storage for testing.
@@ -422,3 +420,112 @@ class InMemoryStorage(IStorage):
                 leased_proxies=leased_proxies,
                 total_leases=total_leases,
             )
+
+    # ------------------------------------------------------------------
+    # CRUD operations
+    # ------------------------------------------------------------------
+
+    def save_pool(self, pool: ProxyPool) -> None:
+        """Persist a pool (insert or upsert)."""
+        with self._lock:
+            pool_copy = pool.model_copy(deep=True)
+            self._pool_name_to_id[pool_copy.name] = pool_copy.id
+            self._pool_objects[pool_copy.id] = pool_copy
+            if pool_copy.id not in self._pools:
+                self._pools[pool_copy.id] = _InMemoryPool(name=pool_copy.name)
+            else:
+                self._pools[pool_copy.id].name = pool_copy.name
+
+    def get_pool(self, pool_id: str) -> ProxyPool:
+        """Return a pool by its UUID string."""
+        from uuid import UUID as _UUID
+
+        from ..exceptions import PoolNotFoundError
+        with self._lock:
+            obj = self._pool_objects.get(_UUID(pool_id))
+            if obj is None:
+                raise PoolNotFoundError(f"Pool {pool_id!r} not found.")
+            return obj.model_copy(deep=True)
+
+    def list_pools(self) -> List[ProxyPool]:
+        """Return all pools."""
+        with self._lock:
+            return [p.model_copy(deep=True) for p in self._pool_objects.values()]
+
+    def delete_pool(self, pool_id: str) -> None:
+        """Delete a pool by its UUID string."""
+        from uuid import UUID as _UUID
+
+        from ..exceptions import PoolNotFoundError
+        with self._lock:
+            uid = _UUID(pool_id)
+            pool_obj = self._pool_objects.pop(uid, None)
+            if pool_obj is None:
+                raise PoolNotFoundError(f"Pool {pool_id!r} not found.")
+            self._pool_name_to_id.pop(pool_obj.name, None)
+            self._pools.pop(uid, None)
+
+    def save_proxy(self, proxy: Proxy) -> None:
+        """Persist a proxy (insert or upsert)."""
+        from ..exceptions import PoolNotFoundError
+        with self._lock:
+            p_copy = proxy.model_copy(deep=True)
+            if p_copy.pool_id not in self._pools:
+                raise PoolNotFoundError(f"Pool {p_copy.pool_id!r} does not exist.")
+            self._pools[p_copy.pool_id].proxies[p_copy.id] = p_copy
+            self._proxy_id_to_pool_id[p_copy.id] = p_copy.pool_id
+
+    def get_proxy(self, proxy_id: str) -> Proxy:
+        """Return a proxy by its UUID string."""
+        from uuid import UUID as _UUID
+
+        from ..exceptions import ProxyNotFoundError
+        with self._lock:
+            uid = _UUID(proxy_id)
+            proxy = self.get_proxy_by_id(uid)
+            if proxy is None:
+                raise ProxyNotFoundError(f"Proxy {proxy_id!r} not found.")
+            return proxy
+
+    def list_proxies(self, pool_id: str) -> List[Proxy]:
+        """Return all proxies in a pool."""
+        from uuid import UUID as _UUID
+
+        from ..exceptions import PoolNotFoundError
+        with self._lock:
+            uid = _UUID(pool_id)
+            pool = self._pools.get(uid)
+            if pool is None:
+                raise PoolNotFoundError(f"Pool {pool_id!r} not found.")
+            return [p.model_copy(deep=True) for p in pool.proxies.values()]
+
+    def delete_proxy(self, proxy_id: str) -> None:
+        """Delete a proxy by its UUID string."""
+        from uuid import UUID as _UUID
+
+        from ..exceptions import ProxyNotFoundError
+        with self._lock:
+            uid = _UUID(proxy_id)
+            pool_id = self._proxy_id_to_pool_id.pop(uid, None)
+            if pool_id is None:
+                raise ProxyNotFoundError(f"Proxy {proxy_id!r} not found.")
+            pool = self._pools.get(pool_id)
+            if pool:
+                pool.proxies.pop(uid, None)
+
+    def get_lease(self, lease_id: str) -> Optional[Lease]:
+        """Return a lease by its UUID string, or None if not found."""
+        from uuid import UUID as _UUID
+        with self._lock:
+            lease = self._leases.get(_UUID(lease_id))
+            return lease.model_copy(deep=True) if lease else None
+
+    def list_leases(self, consumer_id: Optional[str] = None) -> List[Lease]:
+        """Return leases, optionally filtered by consumer UUID string."""
+        from uuid import UUID as _UUID
+        with self._lock:
+            leases = list(self._leases.values())
+            if consumer_id is not None:
+                cid = _UUID(consumer_id)
+                leases = [lease for lease in leases if lease.consumer_id == cid]
+            return [lease.model_copy(deep=True) for lease in leases]

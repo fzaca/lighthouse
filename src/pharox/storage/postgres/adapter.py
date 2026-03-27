@@ -20,6 +20,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.sql import Select
 
+from pharox.exceptions import PoolNotFoundError, ProxyNotFoundError
 from pharox.models import (
     HealthCheckResult,
     Lease,
@@ -27,6 +28,7 @@ from pharox.models import (
     PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
+    ProxyPool,
     ProxyStatus,
     SelectorStrategy,
 )
@@ -580,6 +582,158 @@ class PostgresStorage(IStorage):
             func.sum(case((condition, 1), else_=0)),
             0,
         )
+
+    # ------------------------------------------------------------------
+    # CRUD operations
+    # ------------------------------------------------------------------
+
+    def save_pool(self, pool: ProxyPool) -> None:
+        """Persist a pool (upsert by ID)."""
+        with self._engine.begin() as conn:
+            conn.execute(
+                insert(pool_table)
+                .values(id=pool.id, name=pool.name, description=pool.description)
+                .on_conflict_do_update(
+                    index_elements=[pool_table.c.id],
+                    set_={"name": pool.name, "description": pool.description},
+                )
+            )
+
+    def get_pool(self, pool_id: str) -> ProxyPool:
+        """Return a pool by its UUID string."""
+        with self._engine.begin() as conn:
+            row = (
+                conn.execute(
+                    select(pool_table).where(pool_table.c.id == UUID(pool_id))
+                )
+                .mappings()
+                .first()
+            )
+        if not row:
+            raise PoolNotFoundError(f"Pool {pool_id!r} not found.")
+        return ProxyPool(id=row["id"], name=row["name"], description=row["description"])
+
+    def list_pools(self) -> Sequence[ProxyPool]:
+        """Return all pools."""
+        with self._engine.begin() as conn:
+            rows = conn.execute(select(pool_table)).mappings().all()
+        return [
+            ProxyPool(id=r["id"], name=r["name"], description=r["description"])
+            for r in rows
+        ]
+
+    def delete_pool(self, pool_id: str) -> None:
+        """Delete a pool by its UUID string."""
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                pool_table.delete().where(pool_table.c.id == UUID(pool_id))
+            )
+        if result.rowcount == 0:
+            raise PoolNotFoundError(f"Pool {pool_id!r} not found.")
+
+    def save_proxy(self, proxy: Proxy) -> None:
+        """Persist a proxy (upsert by ID)."""
+        creds = (
+            proxy.credentials.model_dump() if proxy.credentials else None
+        )
+        with self._engine.begin() as conn:
+            conn.execute(
+                insert(proxy_table)
+                .values(
+                    id=proxy.id,
+                    pool_id=proxy.pool_id,
+                    host=str(proxy.host),
+                    port=proxy.port,
+                    protocol=proxy.protocol.value,
+                    status=proxy.status.value,
+                    credentials=creds,
+                    source=proxy.source,
+                    country=proxy.country,
+                    city=proxy.city,
+                    latitude=proxy.latitude,
+                    longitude=proxy.longitude,
+                    isp=proxy.isp,
+                    asn=proxy.asn,
+                    max_concurrency=proxy.max_concurrency,
+                )
+                .on_conflict_do_update(
+                    index_elements=[proxy_table.c.id],
+                    set_={
+                        "host": str(proxy.host),
+                        "port": proxy.port,
+                        "protocol": proxy.protocol.value,
+                        "status": proxy.status.value,
+                        "credentials": creds,
+                        "country": proxy.country,
+                        "city": proxy.city,
+                        "latitude": proxy.latitude,
+                        "longitude": proxy.longitude,
+                    },
+                )
+            )
+
+    def get_proxy(self, proxy_id: str) -> Proxy:
+        """Return a proxy by its UUID string."""
+        with self._engine.begin() as conn:
+            row = (
+                conn.execute(
+                    select(proxy_table).where(proxy_table.c.id == UUID(proxy_id))
+                )
+                .mappings()
+                .first()
+            )
+        if not row:
+            raise ProxyNotFoundError(f"Proxy {proxy_id!r} not found.")
+        return Proxy.model_validate(dict(row))
+
+    def list_proxies(self, pool_id: str) -> Sequence[Proxy]:
+        """Return all proxies in a pool."""
+        with self._engine.begin() as conn:
+            pool_exists = conn.execute(
+                select(pool_table.c.id).where(pool_table.c.id == UUID(pool_id))
+            ).scalar_one_or_none()
+            if not pool_exists:
+                raise PoolNotFoundError(f"Pool {pool_id!r} not found.")
+            rows = (
+                conn.execute(
+                    select(proxy_table).where(proxy_table.c.pool_id == UUID(pool_id))
+                )
+                .mappings()
+                .all()
+            )
+        return [Proxy.model_validate(dict(r)) for r in rows]
+
+    def delete_proxy(self, proxy_id: str) -> None:
+        """Delete a proxy by its UUID string."""
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                proxy_table.delete().where(proxy_table.c.id == UUID(proxy_id))
+            )
+        if result.rowcount == 0:
+            raise ProxyNotFoundError(f"Proxy {proxy_id!r} not found.")
+
+    def get_lease(self, lease_id: str) -> Optional[Lease]:
+        """Return a lease by its UUID string, or None if not found."""
+        with self._engine.begin() as conn:
+            row = (
+                conn.execute(
+                    select(lease_table).where(lease_table.c.id == UUID(lease_id))
+                )
+                .mappings()
+                .first()
+            )
+        if not row:
+            return None
+        return Lease.model_validate(dict(row))
+
+    def list_leases(self, consumer_id: Optional[str] = None) -> Sequence[Lease]:
+        """Return leases, optionally filtered by consumer UUID string."""
+        stmt = select(lease_table)
+        if consumer_id is not None:
+            stmt = stmt.where(lease_table.c.consumer_id == UUID(consumer_id))
+        with self._engine.begin() as conn:
+            rows = conn.execute(stmt).mappings().all()
+        return [Lease.model_validate(dict(r)) for r in rows]
 
     def _distance_km(self, lat: float, lon: float) -> Any:
         lat1 = func.radians(lat)

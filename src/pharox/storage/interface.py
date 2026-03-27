@@ -10,6 +10,7 @@ from ..models import (
     PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
+    ProxyPool,
     SelectorStrategy,
 )
 
@@ -120,4 +121,97 @@ class IStorage(ABC):
         -------
             Number of proxies successfully added.
         """
+        pass
+
+    # ------------------------------------------------------------------
+    # CRUD operations — used by the service layer for administrative tasks
+    # ------------------------------------------------------------------
+
+    @abstractmethod
+    def save_pool(self, pool: ProxyPool) -> None:
+        """Persist a pool (insert or upsert).
+
+        Args:
+        ----
+            pool: The ProxyPool object to save.
+        """
+        pass
+
+    @abstractmethod
+    def get_pool(self, pool_id: str) -> ProxyPool:
+        """Return a pool by its UUID string.
+
+        Raises
+        ------
+            PoolNotFoundError: If no pool with that ID exists.
+        """
+        pass
+
+    @abstractmethod
+    def list_pools(self) -> Sequence[ProxyPool]:
+        """Return all pools."""
+        pass
+
+    @abstractmethod
+    def delete_pool(self, pool_id: str) -> None:
+        """Delete a pool by its UUID string.
+
+        Raises
+        ------
+            PoolNotFoundError: If no pool with that ID exists.
+        """
+        pass
+
+    @abstractmethod
+    def save_proxy(self, proxy: Proxy) -> None:
+        """Persist a proxy (insert or upsert).
+
+        Args:
+        ----
+            proxy: The Proxy object to save.
+
+        Raises
+        ------
+            PoolNotFoundError: If the proxy's pool does not exist.
+        """
+        pass
+
+    @abstractmethod
+    def get_proxy(self, proxy_id: str) -> Proxy:
+        """Return a proxy by its UUID string.
+
+        Raises
+        ------
+            ProxyNotFoundError: If no proxy with that ID exists.
+        """
+        pass
+
+    @abstractmethod
+    def list_proxies(self, pool_id: str) -> Sequence[Proxy]:
+        """Return all proxies in a pool.
+
+        Raises
+        ------
+            PoolNotFoundError: If no pool with that ID exists.
+        """
+        pass
+
+    @abstractmethod
+    def delete_proxy(self, proxy_id: str) -> None:
+        """Delete a proxy by its UUID string.
+
+        Raises
+        ------
+            ProxyNotFoundError: If no proxy with that ID exists.
+        """
+        pass
+
+    @abstractmethod
+    def get_lease(self, lease_id: str) -> Optional[Lease]:
+        """Return a lease by its UUID string, or None if not found."""
+        pass
+
+    @abstractmethod
+    def list_leases(self, consumer_id: Optional[str] = None) -> Sequence[Lease]:
+        """Return leases, optionally filtered by consumer UUID string."""
         pass

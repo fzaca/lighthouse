@@ -109,3 +109,47 @@ class AsyncInMemoryStorage(IAsyncStorage):
     async def add_proxies_bulk(self, proxies: Sequence[Proxy]) -> int:
         """Add multiple proxies in a single operation (non-blocking)."""
         return await asyncio.to_thread(self._backend.add_proxies_bulk, proxies)
+
+    # ------------------------------------------------------------------
+    # CRUD operations
+    # ------------------------------------------------------------------
+
+    async def save_pool(self, pool: ProxyPool) -> None:
+        """Persist a pool (non-blocking)."""
+        await asyncio.to_thread(self._backend.save_pool, pool)
+
+    async def get_pool(self, pool_id: str) -> ProxyPool:
+        """Return a pool by its UUID string (non-blocking)."""
+        return await asyncio.to_thread(self._backend.get_pool, pool_id)
+
+    async def list_pools(self) -> Sequence[ProxyPool]:
+        """Return all pools (non-blocking)."""
+        return await asyncio.to_thread(self._backend.list_pools)
+
+    async def delete_pool(self, pool_id: str) -> None:
+        """Delete a pool by its UUID string (non-blocking)."""
+        await asyncio.to_thread(self._backend.delete_pool, pool_id)
+
+    async def save_proxy(self, proxy: Proxy) -> None:
+        """Persist a proxy (non-blocking)."""
+        await asyncio.to_thread(self._backend.save_proxy, proxy)
+
+    async def get_proxy(self, proxy_id: str) -> Proxy:
+        """Return a proxy by its UUID string (non-blocking)."""
+        return await asyncio.to_thread(self._backend.get_proxy, proxy_id)
+
+    async def list_proxies(self, pool_id: str) -> Sequence[Proxy]:
+        """Return all proxies in a pool (non-blocking)."""
+        return await asyncio.to_thread(self._backend.list_proxies, pool_id)
+
+    async def delete_proxy(self, proxy_id: str) -> None:
+        """Delete a proxy by its UUID string (non-blocking)."""
+        await asyncio.to_thread(self._backend.delete_proxy, proxy_id)
+
+    async def get_lease(self, lease_id: str) -> Optional[Lease]:
+        """Return a lease by its UUID string (non-blocking)."""
+        return await asyncio.to_thread(self._backend.get_lease, lease_id)
+
+    async def list_leases(self, consumer_id: Optional[str] = None) -> Sequence[Lease]:
+        """Return leases, optionally filtered by consumer (non-blocking)."""
+        return await asyncio.to_thread(self._backend.list_leases, consumer_id)
