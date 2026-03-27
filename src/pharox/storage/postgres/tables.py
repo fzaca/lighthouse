@@ -64,12 +64,22 @@ proxy_table = Table(
     Column("port", Integer, nullable=False),
     Column(
         "protocol",
-        Enum(ProxyProtocol, name="proxy_protocol", native_enum=False),
+        Enum(
+            ProxyProtocol,
+            name="proxy_protocol",
+            native_enum=False,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
         nullable=False,
     ),
     Column(
         "status",
-        Enum(ProxyStatus, name="proxy_status", native_enum=False),
+        Enum(
+            ProxyStatus,
+            name="proxy_status",
+            native_enum=False,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
         nullable=False,
         server_default=text(f"'{ProxyStatus.INACTIVE.value}'"),
     ),
@@ -127,7 +137,12 @@ lease_table = Table(
     Column("pool_name", String(128), nullable=False),
     Column(
         "status",
-        Enum(LeaseStatus, name="lease_status", native_enum=False),
+        Enum(
+            LeaseStatus,
+            name="lease_status",
+            native_enum=False,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
         nullable=False,
         server_default=text(f"'{LeaseStatus.ACTIVE.value}'"),
     ),
