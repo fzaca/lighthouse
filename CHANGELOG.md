@@ -114,6 +114,12 @@
 - **proxy**: Add url property to handle auth and simplify usage
 - **manager**: return Lease from acquire_proxy
 
+## v0.9.0 (2026-03-27)
+
+### Feat
+
+- **storage**: add LOWEST_LATENCY selector and get_last_health_result
+
 ## v0.8.2 (2026-03-27)
 
 ### Fix
