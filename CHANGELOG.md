@@ -114,6 +114,12 @@
 - **proxy**: Add url property to handle auth and simplify usage
 - **manager**: return Lease from acquire_proxy
 
+## v0.8.2 (2026-03-27)
+
+### Fix
+
+- **storage**: raise domain exceptions and fix upsert completeness
+
 ## v0.8.1 (2026-03-27)
 
 ### Fix
