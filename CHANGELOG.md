@@ -114,6 +114,12 @@
 - **proxy**: Add url property to handle auth and simplify usage
 - **manager**: return Lease from acquire_proxy
 
+## v0.11.0 (2026-03-28)
+
+### Feat
+
+- **storage**: introduce proxy_health_record as time-series health store
+
 ## v0.10.0 (2026-03-28)
 
 ### Feat
