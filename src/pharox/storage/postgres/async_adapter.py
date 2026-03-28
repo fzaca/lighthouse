@@ -755,7 +755,7 @@ class AsyncPostgresStorage(IAsyncStorage):
     async def ping(self) -> None:
         """Verify connectivity by executing a trivial query against the database."""
         async with self._engine.begin() as conn:
-            await conn.execute(select(1))
+            await conn.execute(select(literal(1)))
 
     def _sum_case(self, condition: Any) -> Any:
         return func.coalesce(func.sum(case((condition, 1), else_=0)), 0)
