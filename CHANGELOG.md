@@ -114,6 +114,16 @@
 - **proxy**: Add url property to handle auth and simplify usage
 - **manager**: return Lease from acquire_proxy
 
+## v0.10.0 (2026-03-28)
+
+### Feat
+
+- **storage**: add ping() to AsyncPostgresStorage for health checks
+
+### Fix
+
+- **storage**: use literal(1) in AsyncPostgresStorage.ping() for SQLAlchemy 2.0 compat
+
 ## v0.9.0 (2026-03-27)
 
 ### Feat
