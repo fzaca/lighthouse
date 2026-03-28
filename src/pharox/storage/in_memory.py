@@ -19,6 +19,7 @@ from ..models import (
     PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
+    ProxyHealthRecord,
     ProxyPool,
     ProxyStatus,
     SelectorStrategy,
@@ -92,7 +93,7 @@ class InMemoryStorage(IStorage):
         self._consumer_name_to_id: Dict[str, UUID] = {}
         self._proxy_id_to_pool_id: Dict[UUID, UUID] = {}
         self._round_robin_cursors: Dict[UUID, int] = {}
-        self._last_health: Dict[UUID, HealthCheckResult] = {}
+        self._health_records: Dict[UUID, List[ProxyHealthRecord]] = {}
 
     def add_pool(self, pool: ProxyPool) -> None:
         """Add a proxy pool to the storage for testing.
@@ -212,9 +213,15 @@ class InMemoryStorage(IStorage):
             return self._select_round_robin(pool_id, available)
         if strategy == SelectorStrategy.LOWEST_LATENCY:
             def _latency_key(proxy: Proxy) -> tuple:
-                result = self._last_health.get(proxy.id)
-                # Proxies without a health result go last
-                return (result is None, result.latency_ms if result else 0, proxy.id)
+                records = self._health_records.get(proxy.id, [])
+                latest = next(
+                    (
+                        r for r in reversed(records)
+                        if r.reachable and r.latency_ms is not None
+                    ),
+                    None,
+                )
+                return (latest is None, latest.latency_ms if latest else 0, proxy.id)
             return min(available, key=_latency_key)
         return available[0]
 
@@ -359,9 +366,21 @@ class InMemoryStorage(IStorage):
             if proxy is None:
                 return None
 
+            status_before = proxy.status
             proxy.status = result.status
             proxy.checked_at = result.checked_at
-            self._last_health[result.proxy_id] = result
+
+            record = ProxyHealthRecord(
+                proxy_id=result.proxy_id,
+                checked_at=result.checked_at,
+                reachable=result.status in (ProxyStatus.ACTIVE, ProxyStatus.SLOW),
+                latency_ms=result.latency_ms,
+                protocol=result.protocol,
+                status_before=status_before,
+                status_after=result.status,
+                error=result.error_message,
+            )
+            self._health_records.setdefault(result.proxy_id, []).append(record)
 
             return proxy.model_copy(deep=True)
 
@@ -370,7 +389,18 @@ class InMemoryStorage(IStorage):
     ) -> Optional[HealthCheckResult]:
         """Return the most recent health check result for a proxy, or None."""
         with self._lock:
-            return self._last_health.get(proxy_id)
+            records = self._health_records.get(proxy_id)
+            if not records:
+                return None
+            record = records[-1]
+            return HealthCheckResult(
+                proxy_id=record.proxy_id,
+                status=record.status_after,
+                latency_ms=record.latency_ms or 0,
+                protocol=record.protocol,
+                checked_at=record.checked_at,
+                error_message=record.error,
+            )
 
     def add_proxies_bulk(self, proxies: Sequence[Proxy]) -> int:
         """
@@ -547,3 +577,18 @@ class InMemoryStorage(IStorage):
                 cid = _UUID(consumer_id)
                 leases = [lease for lease in leases if lease.consumer_id == cid]
             return [lease.model_copy(deep=True) for lease in leases]
+
+    def save_health_record(self, record: ProxyHealthRecord) -> None:
+        """Persist an immutable health check observation."""
+        with self._lock:
+            self._health_records.setdefault(record.proxy_id, []).append(
+                record.model_copy(deep=True)
+            )
+
+    def list_health_records(
+        self, proxy_id: UUID, limit: int = 100
+    ) -> List[ProxyHealthRecord]:
+        """Return the most recent health check records for a proxy, newest first."""
+        with self._lock:
+            records = self._health_records.get(proxy_id, [])
+            return [r.model_copy(deep=True) for r in reversed(records)][:limit]

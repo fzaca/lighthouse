@@ -10,6 +10,7 @@ from ..models import (
     PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
+    ProxyHealthRecord,
     ProxyPool,
     SelectorStrategy,
 )
@@ -227,4 +228,16 @@ class IStorage(ABC):
     @abstractmethod
     def list_leases(self, consumer_id: Optional[str] = None) -> Sequence[Lease]:
         """Return leases, optionally filtered by consumer UUID string."""
+        pass
+
+    @abstractmethod
+    def save_health_record(self, record: ProxyHealthRecord) -> None:
+        """Persist an immutable health check observation."""
+        pass
+
+    @abstractmethod
+    def list_health_records(
+        self, proxy_id: UUID, limit: int = 100
+    ) -> Sequence[ProxyHealthRecord]:
+        """Return the most recent health check records for a proxy, newest first."""
         pass

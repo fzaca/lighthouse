@@ -11,6 +11,7 @@ from ..models import (
     PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
+    ProxyHealthRecord,
     ProxyPool,
     SelectorStrategy,
 )
@@ -159,3 +160,15 @@ class AsyncInMemoryStorage(IAsyncStorage):
     async def list_leases(self, consumer_id: Optional[str] = None) -> Sequence[Lease]:
         """Return leases, optionally filtered by consumer (non-blocking)."""
         return await asyncio.to_thread(self._backend.list_leases, consumer_id)
+
+    async def save_health_record(self, record: ProxyHealthRecord) -> None:
+        """Persist an immutable health check observation (non-blocking)."""
+        await asyncio.to_thread(self._backend.save_health_record, record)
+
+    async def list_health_records(
+        self, proxy_id: UUID, limit: int = 100
+    ) -> Sequence[ProxyHealthRecord]:
+        """Return the most recent health check records for a proxy (non-blocking)."""
+        return await asyncio.to_thread(
+            self._backend.list_health_records, proxy_id, limit
+        )

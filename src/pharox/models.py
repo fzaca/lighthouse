@@ -179,6 +179,24 @@ class HealthCheckResult(BaseModel):
     error_message: Optional[str] = None
 
 
+class ProxyHealthRecord(BaseModel):
+    """Immutable record of a single proxy health check observation.
+
+    Stored in a dedicated time-series table so that latency history is
+    preserved across checks rather than overwritten on the proxy row.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    proxy_id: UUID
+    checked_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    reachable: bool
+    latency_ms: Optional[int] = None
+    protocol: ProxyProtocol
+    status_before: Optional[ProxyStatus] = None
+    status_after: ProxyStatus
+    error: Optional[str] = None
+
+
 class ProxyFilters(BaseModel):
     """Represents the filters to apply when finding an available proxy."""
 

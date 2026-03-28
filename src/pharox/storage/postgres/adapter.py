@@ -14,6 +14,7 @@ from sqlalchemy import (
     literal,
     or_,
     select,
+    true,
     update,
 )
 from sqlalchemy.dialects.postgresql import insert
@@ -33,6 +34,7 @@ from pharox.models import (
     PoolStatsSnapshot,
     Proxy,
     ProxyFilters,
+    ProxyHealthRecord,
     ProxyPool,
     ProxyProtocol,
     ProxyStatus,
@@ -45,6 +47,7 @@ from .tables import (
     consumer_table,
     lease_table,
     pool_table,
+    proxy_health_record_table,
     proxy_table,
     selector_state_table,
 )
@@ -300,7 +303,7 @@ class PostgresStorage(IStorage):
     def apply_health_check_result(
         self, result: HealthCheckResult
     ) -> Optional[Proxy]:
-        """Update a proxy row based on the latest health check."""
+        """Persist a health-check outcome and return the updated proxy."""
         with self._engine.begin() as conn:
             conn.execute(
                 update(proxy_table)
@@ -308,7 +311,17 @@ class PostgresStorage(IStorage):
                 .values(
                     status=result.status.value,
                     checked_at=result.checked_at,
+                )
+            )
+            conn.execute(
+                insert(proxy_health_record_table).values(
+                    id=uuid4(),
+                    proxy_id=result.proxy_id,
+                    checked_at=result.checked_at,
+                    reachable=result.status in (ProxyStatus.ACTIVE, ProxyStatus.SLOW),
                     latency_ms=result.latency_ms,
+                    protocol=result.protocol.value,
+                    status_after=result.status.value,
                 )
             )
             refreshed = (
@@ -323,29 +336,34 @@ class PostgresStorage(IStorage):
     def get_last_health_result(
         self, proxy_id: UUID
     ) -> Optional[HealthCheckResult]:
-        """Return the last health check data stored on the proxy row."""
+        """Return the most recent health check result from the health record table."""
         with self._engine.begin() as conn:
             row = (
                 conn.execute(
                     select(
-                        proxy_table.c.id,
-                        proxy_table.c.status,
-                        proxy_table.c.latency_ms,
-                        proxy_table.c.protocol,
-                        proxy_table.c.checked_at,
-                    ).where(proxy_table.c.id == proxy_id)
+                        proxy_health_record_table.c.proxy_id,
+                        proxy_health_record_table.c.status_after,
+                        proxy_health_record_table.c.latency_ms,
+                        proxy_health_record_table.c.protocol,
+                        proxy_health_record_table.c.checked_at,
+                        proxy_health_record_table.c.error,
+                    )
+                    .where(proxy_health_record_table.c.proxy_id == proxy_id)
+                    .order_by(proxy_health_record_table.c.checked_at.desc())
+                    .limit(1)
                 )
                 .mappings()
                 .first()
             )
-        if row is None or row["latency_ms"] is None:
+        if row is None:
             return None
         return HealthCheckResult(
-            proxy_id=row["id"],
-            status=ProxyStatus(row["status"]),
-            latency_ms=row["latency_ms"],
+            proxy_id=row["proxy_id"],
+            status=ProxyStatus(row["status_after"]),
+            latency_ms=row["latency_ms"] or 0,
             protocol=ProxyProtocol(row["protocol"]),
             checked_at=row["checked_at"],
+            error_message=row["error"],
         )
 
     def get_pool_stats(self, pool_name: str) -> Optional[PoolStatsSnapshot]:
@@ -426,9 +444,24 @@ class PostgresStorage(IStorage):
             return self._select_round_robin(conn, pool_id, base_stmt)
         if strategy == SelectorStrategy.LOWEST_LATENCY:
             from sqlalchemy import nulls_last
-            stmt = base_stmt.order_by(
-                nulls_last(proxy_table.c.latency_ms.asc()),
-                proxy_table.c.id.asc(),
+            lat_sub = (
+                select(proxy_health_record_table.c.latency_ms)
+                .where(
+                    proxy_health_record_table.c.proxy_id == proxy_table.c.id,
+                    proxy_health_record_table.c.reachable.is_(True),
+                    proxy_health_record_table.c.latency_ms.isnot(None),
+                )
+                .order_by(proxy_health_record_table.c.checked_at.desc())
+                .limit(1)
+                .lateral("phm")
+            )
+            stmt = (
+                base_stmt
+                .add_columns(lat_sub.c.latency_ms.label("last_latency"))
+                .outerjoin(lat_sub, true())
+                .order_by(
+                    nulls_last(lat_sub.c.latency_ms.asc()), proxy_table.c.id.asc()
+                )
             )
             return (
                 conn.execute(
@@ -785,6 +818,42 @@ class PostgresStorage(IStorage):
         with self._engine.begin() as conn:
             rows = conn.execute(stmt).mappings().all()
         return [Lease.model_validate(dict(r)) for r in rows]
+
+    def save_health_record(self, record: ProxyHealthRecord) -> None:
+        """Persist an immutable health check observation."""
+        with self._engine.begin() as conn:
+            conn.execute(
+                insert(proxy_health_record_table).values(
+                    id=record.id,
+                    proxy_id=record.proxy_id,
+                    checked_at=record.checked_at,
+                    reachable=record.reachable,
+                    latency_ms=record.latency_ms,
+                    protocol=record.protocol.value,
+                    status_before=(
+                        record.status_before.value if record.status_before else None
+                    ),
+                    status_after=record.status_after.value,
+                    error=record.error,
+                )
+            )
+
+    def list_health_records(
+        self, proxy_id: UUID, limit: int = 100
+    ) -> Sequence[ProxyHealthRecord]:
+        """Return the most recent health check records for a proxy, newest first."""
+        with self._engine.begin() as conn:
+            rows = (
+                conn.execute(
+                    select(proxy_health_record_table)
+                    .where(proxy_health_record_table.c.proxy_id == proxy_id)
+                    .order_by(proxy_health_record_table.c.checked_at.desc())
+                    .limit(limit)
+                )
+                .mappings()
+                .all()
+            )
+        return [ProxyHealthRecord.model_validate(dict(r)) for r in rows]
 
     def _distance_km(self, lat: float, lon: float) -> Any:
         lat1 = func.radians(lat)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
     DateTime,
     Enum,
@@ -92,7 +93,6 @@ proxy_table = Table(
     Column("isp", String(255)),
     Column("asn", Integer),
     Column("max_concurrency", Integer),
-    Column("latency_ms", Integer),
     Column(
         "current_leases",
         Integer,
@@ -181,4 +181,28 @@ selector_state_table = Table(
         server_default=text("now()"),
     ),
     PrimaryKeyConstraint("pool_id", "strategy", name="pk_pool_selector_state"),
+)
+
+proxy_health_record_table = Table(
+    "proxy_health_record",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column(
+        "proxy_id",
+        UUID(as_uuid=True),
+        ForeignKey("proxy.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "checked_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column("reachable", Boolean, nullable=False),
+    Column("latency_ms", Integer),
+    Column("protocol", String(16), nullable=False),
+    Column("status_before", String(32)),
+    Column("status_after", String(32), nullable=False),
+    Column("error", Text),
 )
