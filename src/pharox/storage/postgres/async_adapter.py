@@ -34,6 +34,7 @@ from pharox.models import (
     Proxy,
     ProxyFilters,
     ProxyPool,
+    ProxyProtocol,
     ProxyStatus,
     SelectorStrategy,
 )
@@ -312,7 +313,11 @@ class AsyncPostgresStorage(IAsyncStorage):
             await conn.execute(
                 update(proxy_table)
                 .where(proxy_table.c.id == result.proxy_id)
-                .values(status=result.status.value, checked_at=result.checked_at)
+                .values(
+                    status=result.status.value,
+                    checked_at=result.checked_at,
+                    latency_ms=result.latency_ms,
+                )
             )
             refreshed = (
                 await conn.execute(
@@ -320,6 +325,32 @@ class AsyncPostgresStorage(IAsyncStorage):
                 )
             ).mappings().first()
             return Proxy.model_validate(dict(refreshed)) if refreshed else None
+
+    async def get_last_health_result(
+        self, proxy_id: UUID
+    ) -> Optional[HealthCheckResult]:
+        """Return the last health check data stored on the proxy row."""
+        async with self._engine.begin() as conn:
+            row = (
+                await conn.execute(
+                    select(
+                        proxy_table.c.id,
+                        proxy_table.c.status,
+                        proxy_table.c.latency_ms,
+                        proxy_table.c.protocol,
+                        proxy_table.c.checked_at,
+                    ).where(proxy_table.c.id == proxy_id)
+                )
+            ).mappings().first()
+        if row is None or row["latency_ms"] is None:
+            return None
+        return HealthCheckResult(
+            proxy_id=row["id"],
+            status=ProxyStatus(row["status"]),
+            latency_ms=row["latency_ms"],
+            protocol=ProxyProtocol(row["protocol"]),
+            checked_at=row["checked_at"],
+        )
 
     async def get_pool_stats(self, pool_name: str) -> Optional[PoolStatsSnapshot]:
         """Return aggregate counters for the named pool."""
@@ -395,6 +426,16 @@ class AsyncPostgresStorage(IAsyncStorage):
 
         if strategy == SelectorStrategy.ROUND_ROBIN:
             return await self._select_round_robin(conn, pool_id, availability)
+
+        if strategy == SelectorStrategy.LOWEST_LATENCY:
+            from sqlalchemy import nulls_last
+            stmt = availability.order_by(
+                nulls_last(proxy_table.c.latency_ms.asc()),
+                proxy_table.c.id.asc(),
+            )
+            return (
+                await conn.execute(stmt.limit(1).with_for_update(skip_locked=True))
+            ).mappings().first()
 
         stmt = availability.order_by(
             proxy_table.c.checked_at.desc(),

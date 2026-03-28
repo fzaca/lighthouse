@@ -65,6 +65,7 @@ class SelectorStrategy(str, Enum):
     FIRST_AVAILABLE = "first_available"
     LEAST_USED = "least_used"
     ROUND_ROBIN = "round_robin"
+    LOWEST_LATENCY = "lowest_latency"
 
 
 class Proxy(BaseModel):

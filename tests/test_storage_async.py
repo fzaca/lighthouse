@@ -155,3 +155,87 @@ async def test_apply_health_check_result_updates_proxy() -> None:
     updated = await storage.apply_health_check_result(result)
     assert updated is not None
     assert updated.status == ProxyStatus.INACTIVE
+
+
+@pytest.mark.asyncio
+async def test_lowest_latency_selector_picks_fastest() -> None:
+    """LOWEST_LATENCY selector returns the proxy with the smallest latency_ms."""
+    from pharox import SelectorStrategy
+
+    storage = AsyncInMemoryStorage()
+    pool = bootstrap_pool(storage, name="pool-latency")
+
+    slow = _make_proxy(pool.id, host="10.0.0.10")
+    fast = _make_proxy(pool.id, host="10.0.0.20")
+    medium = _make_proxy(pool.id, host="10.0.0.30")
+    for p in (slow, fast, medium):
+        storage.add_proxy(p)
+
+    for proxy, latency in ((slow, 1500), (fast, 200), (medium, 800)):
+        await storage.apply_health_check_result(
+            HealthCheckResult(
+                proxy_id=proxy.id,
+                status=ProxyStatus.ACTIVE,
+                latency_ms=latency,
+                protocol=ProxyProtocol.HTTP,
+            )
+        )
+
+    chosen = await storage.find_available_proxy(
+        "pool-latency", selector=SelectorStrategy.LOWEST_LATENCY
+    )
+    assert chosen is not None
+    assert str(chosen.host) == "10.0.0.20"
+
+
+@pytest.mark.asyncio
+async def test_lowest_latency_proxies_without_health_result_go_last() -> None:
+    """Proxies with no health result are deprioritized over any measured latency."""
+    from pharox import SelectorStrategy
+
+    storage = AsyncInMemoryStorage()
+    pool = bootstrap_pool(storage, name="pool-latency-fallback")
+
+    no_check = _make_proxy(pool.id, host="10.0.1.1")
+    checked = _make_proxy(pool.id, host="10.0.1.2")
+    for p in (no_check, checked):
+        storage.add_proxy(p)
+
+    await storage.apply_health_check_result(
+        HealthCheckResult(
+            proxy_id=checked.id,
+            status=ProxyStatus.ACTIVE,
+            latency_ms=5000,
+            protocol=ProxyProtocol.HTTP,
+        )
+    )
+
+    chosen = await storage.find_available_proxy(
+        "pool-latency-fallback", selector=SelectorStrategy.LOWEST_LATENCY
+    )
+    assert chosen is not None
+    assert str(chosen.host) == "10.0.1.2"
+
+
+@pytest.mark.asyncio
+async def test_get_last_health_result() -> None:
+    """get_last_health_result returns the most recent HealthCheckResult."""
+    storage = AsyncInMemoryStorage()
+    pool = bootstrap_pool(storage, name="pool-last-hc")
+    proxy = _make_proxy(pool.id)
+    storage.add_proxy(proxy)
+
+    assert await storage.get_last_health_result(proxy.id) is None
+
+    result = HealthCheckResult(
+        proxy_id=proxy.id,
+        status=ProxyStatus.ACTIVE,
+        latency_ms=350,
+        protocol=ProxyProtocol.HTTP,
+    )
+    await storage.apply_health_check_result(result)
+
+    stored = await storage.get_last_health_result(proxy.id)
+    assert stored is not None
+    assert stored.latency_ms == 350
+    assert stored.proxy_id == proxy.id

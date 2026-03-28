@@ -92,6 +92,7 @@ class InMemoryStorage(IStorage):
         self._consumer_name_to_id: Dict[str, UUID] = {}
         self._proxy_id_to_pool_id: Dict[UUID, UUID] = {}
         self._round_robin_cursors: Dict[UUID, int] = {}
+        self._last_health: Dict[UUID, HealthCheckResult] = {}
 
     def add_pool(self, pool: ProxyPool) -> None:
         """Add a proxy pool to the storage for testing.
@@ -209,6 +210,12 @@ class InMemoryStorage(IStorage):
             )
         if strategy == SelectorStrategy.ROUND_ROBIN:
             return self._select_round_robin(pool_id, available)
+        if strategy == SelectorStrategy.LOWEST_LATENCY:
+            def _latency_key(proxy: Proxy) -> tuple:
+                result = self._last_health.get(proxy.id)
+                # Proxies without a health result go last
+                return (result is None, result.latency_ms if result else 0, proxy.id)
+            return min(available, key=_latency_key)
         return available[0]
 
     def _select_round_robin(
@@ -354,8 +361,16 @@ class InMemoryStorage(IStorage):
 
             proxy.status = result.status
             proxy.checked_at = result.checked_at
+            self._last_health[result.proxy_id] = result
 
             return proxy.model_copy(deep=True)
+
+    def get_last_health_result(
+        self, proxy_id: UUID
+    ) -> Optional[HealthCheckResult]:
+        """Return the most recent health check result for a proxy, or None."""
+        with self._lock:
+            return self._last_health.get(proxy_id)
 
     def add_proxies_bulk(self, proxies: Sequence[Proxy]) -> int:
         """

@@ -92,6 +92,7 @@ proxy_table = Table(
     Column("isp", String(255)),
     Column("asn", Integer),
     Column("max_concurrency", Integer),
+    Column("latency_ms", Integer),
     Column(
         "current_leases",
         Integer,

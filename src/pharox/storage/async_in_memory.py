@@ -102,6 +102,12 @@ class AsyncInMemoryStorage(IAsyncStorage):
             self._backend.apply_health_check_result, result
         )
 
+    async def get_last_health_result(
+        self, proxy_id: UUID
+    ) -> Optional[HealthCheckResult]:
+        """Return the most recent health check result for a proxy (non-blocking)."""
+        return await asyncio.to_thread(self._backend.get_last_health_result, proxy_id)
+
     async def get_pool_stats(self, pool_name: str) -> Optional[PoolStatsSnapshot]:
         """Return aggregate stats for a pool (non-blocking)."""
         return await asyncio.to_thread(self._backend.get_pool_stats, pool_name)
