@@ -20,7 +20,12 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.sql import Select
 
-from pharox.exceptions import PoolNotFoundError, ProxyNotFoundError
+from pharox.exceptions import (
+    InvalidLeaseError,
+    PoolNotFoundError,
+    ProxyNotFoundError,
+    ProxyUnavailableError,
+)
 from pharox.models import (
     HealthCheckResult,
     Lease,
@@ -110,7 +115,7 @@ class PostgresStorage(IStorage):
     ) -> Lease:
         """Persist a lease for the specified proxy and consumer."""
         if duration_seconds <= 0:
-            raise ValueError("duration_seconds must be positive.")
+            raise InvalidLeaseError("duration_seconds must be positive.")
 
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=duration_seconds)
 
@@ -133,14 +138,14 @@ class PostgresStorage(IStorage):
                 .first()
             )
             if not proxy_row:
-                raise ValueError(f"Proxy {proxy.id} not found.")
+                raise ProxyNotFoundError(f"Proxy {proxy.id} not found.")
 
             max_concurrency = proxy_row["max_concurrency"]
             if (
                 max_concurrency is not None
                 and proxy_row["current_leases"] >= max_concurrency
             ):
-                raise RuntimeError(f"Proxy {proxy.id} is no longer available.")
+                raise ProxyUnavailableError(f"Proxy {proxy.id} is no longer available.")
 
             lease_id = uuid4()
             acquired_at = datetime.now(timezone.utc)
@@ -664,10 +669,15 @@ class PostgresStorage(IStorage):
                         "protocol": proxy.protocol.value,
                         "status": proxy.status.value,
                         "credentials": creds,
+                        "source": proxy.source,
                         "country": proxy.country,
                         "city": proxy.city,
                         "latitude": proxy.latitude,
                         "longitude": proxy.longitude,
+                        "isp": proxy.isp,
+                        "asn": proxy.asn,
+                        "max_concurrency": proxy.max_concurrency,
+                        "checked_at": proxy.checked_at,
                     },
                 )
             )

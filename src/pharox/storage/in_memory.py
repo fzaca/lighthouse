@@ -6,6 +6,7 @@ from uuid import UUID
 
 from ..exceptions import (
     ConsumerNotFoundError,
+    InvalidLeaseError,
     PoolNotFoundError,
     ProxyNotFoundError,
     ProxyUnavailableError,
@@ -236,6 +237,8 @@ class InMemoryStorage(IStorage):
         -------
             The newly created Lease object.
         """
+        if duration_seconds <= 0:
+            raise InvalidLeaseError("duration_seconds must be positive.")
         with self._lock:
             consumer_id = self._consumer_name_to_id.get(consumer_name)
             if not consumer_id:

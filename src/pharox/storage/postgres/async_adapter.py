@@ -20,7 +20,12 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from sqlalchemy.sql import Select
 
-from pharox.exceptions import PoolNotFoundError, ProxyNotFoundError
+from pharox.exceptions import (
+    InvalidLeaseError,
+    PoolNotFoundError,
+    ProxyNotFoundError,
+    ProxyUnavailableError,
+)
 from pharox.models import (
     HealthCheckResult,
     Lease,
@@ -129,6 +134,8 @@ class AsyncPostgresStorage(IAsyncStorage):
         self, proxy: Proxy, consumer_name: str, duration_seconds: int
     ) -> Lease:
         """Atomically claim a proxy for a consumer."""
+        if duration_seconds <= 0:
+            raise InvalidLeaseError("duration_seconds must be positive.")
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=duration_seconds)
 
         async with self._engine.begin() as conn:
@@ -149,14 +156,14 @@ class AsyncPostgresStorage(IAsyncStorage):
             ).mappings().first()
 
             if not proxy_row:
-                raise ValueError(f"Proxy {proxy.id} not found.")
+                raise ProxyNotFoundError(f"Proxy {proxy.id} not found.")
 
             max_concurrency = proxy_row["max_concurrency"]
             if (
                 max_concurrency is not None
                 and proxy_row["current_leases"] >= max_concurrency
             ):
-                raise RuntimeError(f"Proxy {proxy.id} is no longer available.")
+                raise ProxyUnavailableError(f"Proxy {proxy.id} is no longer available.")
 
             lease_id = uuid4()
             acquired_at = datetime.now(timezone.utc)
@@ -632,10 +639,15 @@ class AsyncPostgresStorage(IAsyncStorage):
                         "protocol": proxy.protocol.value,
                         "status": proxy.status.value,
                         "credentials": creds,
+                        "source": proxy.source,
                         "country": proxy.country,
                         "city": proxy.city,
                         "latitude": proxy.latitude,
                         "longitude": proxy.longitude,
+                        "isp": proxy.isp,
+                        "asn": proxy.asn,
+                        "max_concurrency": proxy.max_concurrency,
+                        "checked_at": proxy.checked_at,
                     },
                 )
             )
